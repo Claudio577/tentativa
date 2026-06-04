@@ -296,10 +296,7 @@ INDICATORS = [
     "% 1º retorno até 1h",
 ]
 
-COLOR_MAP_MONTHS = [
-    "#2563EB",
-    "#F97316",
-]
+COLOR_MAP_MONTHS = ["#2563EB", "#F97316"]
 
 PLOT_FONT = dict(
     family="Arial",
@@ -346,8 +343,20 @@ def normalize_empresa_name(value: Any) -> str:
         return ""
 
     upper = text.upper()
+    compact = (
+        upper.replace(".", " ")
+        .replace("-", " ")
+        .replace("_", " ")
+        .replace("/", " ")
+    )
+    compact = " ".join(compact.split())
 
-    if "CBLOC" in upper or "C BLOC" in upper or "CBLOC BRASIL" in upper:
+    if (
+        "CBLOC" in compact
+        or "C BLOC" in compact
+        or "CBLOC BRASIL" in compact
+        or "CBLO" in compact
+    ):
         return "CBLOC BRASIL LOCAÇÃO DE EQUIPAMENTOS"
 
     return text
@@ -447,7 +456,6 @@ def calculate_metrics(df: pd.DataFrame) -> Dict[str, float]:
 
     fcr_ate_1h = count_leq_hours(abertura, encerramento, 1)
     resolvidos_acima_1h = count_gt_hours(abertura, encerramento, 1)
-
     primeiro_retorno_ate_1h = count_leq_hours(abertura, primeiro_retorno, 1)
 
     empresas_unicas = (
@@ -659,11 +667,11 @@ def truncate_label(text: str, max_len: int = 30) -> str:
     return text[: max_len - 3] + "..."
 
 
-def top_table(df: pd.DataFrame, key: str, top_n: int = 5, include_other: bool = False) -> pd.DataFrame:
+def count_dimension(df: pd.DataFrame, key: str) -> pd.Series:
     col = find_col(df, key)
 
-    if col is None:
-        return pd.DataFrame(columns=["Nome", "Quantidade", "% do total", "Nome curto"])
+    if col is None or df.empty:
+        return pd.Series(dtype="int64")
 
     numero_col = find_col(df, "numero")
 
@@ -674,15 +682,18 @@ def top_table(df: pd.DataFrame, key: str, top_n: int = 5, include_other: bool = 
     if numero_col:
         temp["Chamado"] = df[numero_col].astype(str).map(clean_text_value)
         temp = temp[temp["Chamado"] != ""]
-        counts = temp.groupby("Nome")["Chamado"].nunique().sort_values(ascending=False)
-        total_base = temp["Chamado"].nunique() if temp["Chamado"].nunique() else len(df)
-    else:
-        counts = temp["Nome"].value_counts()
-        total_base = len(df) if len(df) else 1
+        return temp.groupby("Nome")["Chamado"].nunique().sort_values(ascending=False)
+
+    return temp["Nome"].value_counts().sort_values(ascending=False)
+
+
+def top_table(df: pd.DataFrame, key: str, top_n: int = 5, include_other: bool = False) -> pd.DataFrame:
+    counts = count_dimension(df, key)
 
     if counts.empty:
         return pd.DataFrame(columns=["Nome", "Quantidade", "% do total", "Nome curto"])
 
+    total_base = int(counts.sum()) if int(counts.sum()) else 1
     top_counts = counts.head(top_n).copy()
 
     if include_other and len(counts) > top_n:
@@ -697,9 +708,50 @@ def top_table(df: pd.DataFrame, key: str, top_n: int = 5, include_other: bool = 
     )
 
     table["% do total"] = [format_pct(pct(v, total_base), 1) for v in table["Quantidade"]]
-    table["Nome curto"] = table["Nome"].map(lambda x: truncate_label(x, 30))
+    table["Nome curto"] = [
+        "Outros" if nome == "Outros" else f"{idx + 1}. {truncate_label(nome, 28)}"
+        for idx, nome in enumerate(table["Nome"])
+    ]
 
     return table
+
+
+def compare_dimension(
+    previous_df: pd.DataFrame,
+    current_df: pd.DataFrame,
+    key: str,
+    previous_label: str,
+    current_label: str,
+    top_n: int = 10,
+) -> pd.DataFrame:
+    prev_counts = count_dimension(previous_df, key)
+    curr_counts = count_dimension(current_df, key)
+
+    if prev_counts.empty and curr_counts.empty:
+        return pd.DataFrame(columns=["Nome", "Nome curto", previous_label, current_label, "Diferença", "Total"])
+
+    total_counts = prev_counts.add(curr_counts, fill_value=0).sort_values(ascending=False)
+    selected_names = total_counts.head(top_n).index.tolist()
+
+    rows = []
+
+    for idx, name in enumerate(selected_names):
+        prev = int(prev_counts.get(name, 0))
+        curr = int(curr_counts.get(name, 0))
+        diff = curr - prev
+
+        rows.append(
+            {
+                "Nome": name,
+                "Nome curto": f"{idx + 1}. {truncate_label(name, 30)}",
+                previous_label: prev,
+                current_label: curr,
+                "Diferença": diff,
+                "Total": prev + curr,
+            }
+        )
+
+    return pd.DataFrame(rows)
 
 
 def pain_points(current: Dict[str, float]) -> pd.DataFrame:
@@ -895,7 +947,7 @@ def render_vertical_chart(
     current_label: str,
     y_title: str,
     is_percentage: bool = False,
-    height: int = 430,
+    height: int = 390,
 ) -> None:
     indicators = list(indicator_map.keys())
 
@@ -950,17 +1002,8 @@ def render_vertical_chart(
         paper_bgcolor="#FFFFFF",
     )
 
-    fig.update_xaxes(
-        tickangle=-25,
-        tickfont=dict(size=12, color="#0F172A"),
-        title_font=dict(color="#0F172A"),
-    )
-
-    fig.update_yaxes(
-        tickfont=dict(size=12, color="#0F172A"),
-        title_font=dict(color="#0F172A"),
-        gridcolor="#E5E7EB",
-    )
+    fig.update_xaxes(tickangle=-25, tickfont=dict(size=11, color="#0F172A"))
+    fig.update_yaxes(tickfont=dict(size=11, color="#0F172A"), gridcolor="#E5E7EB")
 
     st.plotly_chart(fig, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
@@ -999,7 +1042,7 @@ def render_comparison_charts(
             current_label,
             "Quantidade",
             is_percentage=False,
-            height=430,
+            height=390,
         )
 
     with col2:
@@ -1016,7 +1059,7 @@ def render_comparison_charts(
             current_label,
             "Quantidade",
             is_percentage=False,
-            height=430,
+            height=390,
         )
 
     with col3:
@@ -1033,7 +1076,7 @@ def render_comparison_charts(
             current_label,
             "Quantidade",
             is_percentage=False,
-            height=430,
+            height=390,
         )
 
     render_vertical_chart(
@@ -1049,7 +1092,7 @@ def render_comparison_charts(
         current_label,
         "Percentual (%)",
         is_percentage=True,
-        height=430,
+        height=390,
     )
 
     return comp
@@ -1089,8 +1132,8 @@ def render_current_overview(current: Dict[str, float], current_label: str) -> No
 def render_pie_chart_from_table(
     table: pd.DataFrame,
     title: str,
-    height: int = 430,
-    hole: float = 0.42,
+    height: int = 340,
+    hole: float = 0.45,
 ) -> None:
     if table.empty:
         st.info("Dados não encontrados para este gráfico.")
@@ -1107,21 +1150,146 @@ def render_pie_chart_from_table(
     )
 
     fig.update_traces(
-        textinfo="label+percent",
-        textfont_size=12,
+        textinfo="percent+label",
+        textfont_size=11,
         marker=dict(line=dict(color="#FFFFFF", width=2)),
     )
 
     fig.update_layout(
         height=height,
         font=PLOT_FONT,
-        title_font=dict(size=17, color="#0F172A"),
-        legend_font=dict(size=11, color="#0F172A"),
-        margin=dict(l=10, r=10, t=60, b=10),
+        title_font=dict(size=16, color="#0F172A"),
+        legend_font=dict(size=10, color="#0F172A"),
+        margin=dict(l=5, r=5, t=45, b=5),
+        paper_bgcolor="#FFFFFF",
+        showlegend=True,
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def render_horizontal_bar_from_table(
+    table: pd.DataFrame,
+    title: str,
+    height: int = 330,
+) -> None:
+    if table.empty:
+        st.info("Dados não encontrados para este gráfico.")
+        return
+
+    chart_table = table.sort_values("Quantidade", ascending=False).copy()
+
+    fig = px.bar(
+        chart_table,
+        x="Quantidade",
+        y="Nome curto",
+        orientation="h",
+        text="Quantidade",
+        title=title,
+        hover_data=["Nome", "% do total"],
+        color_discrete_sequence=["#2563EB"],
+    )
+
+    fig.update_traces(texttemplate="%{x:.0f}", textposition="outside")
+    fig.update_yaxes(autorange="reversed", tickfont=dict(size=10, color="#0F172A"), title="")
+    fig.update_xaxes(title="Quantidade", tickfont=dict(size=10, color="#0F172A"), gridcolor="#E5E7EB")
+
+    fig.update_layout(
+        height=height,
+        font=PLOT_FONT,
+        title_font=dict(size=16, color="#0F172A"),
+        margin=dict(l=5, r=45, t=45, b=25),
+        plot_bgcolor="#FFFFFF",
+        paper_bgcolor="#FFFFFF",
+        showlegend=False,
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def render_dimension_comparison_bar(
+    table: pd.DataFrame,
+    title: str,
+    previous_label: str,
+    current_label: str,
+    height: int = 360,
+) -> None:
+    if table.empty:
+        st.info("Dados não encontrados para comparação.")
+        return
+
+    long_df = table.melt(
+        id_vars=["Nome", "Nome curto", "Diferença", "Total"],
+        value_vars=[previous_label, current_label],
+        var_name="Mês",
+        value_name="Quantidade",
+    )
+
+    fig = px.bar(
+        long_df,
+        x="Quantidade",
+        y="Nome curto",
+        color="Mês",
+        orientation="h",
+        barmode="group",
+        text="Quantidade",
+        title=title,
+        hover_data=["Nome"],
+        color_discrete_sequence=COLOR_MAP_MONTHS,
+    )
+
+    fig.update_traces(texttemplate="%{x:.0f}", textposition="outside")
+    fig.update_yaxes(autorange="reversed", tickfont=dict(size=10, color="#0F172A"), title="")
+    fig.update_xaxes(title="Quantidade", tickfont=dict(size=10, color="#0F172A"), gridcolor="#E5E7EB")
+
+    fig.update_layout(
+        height=height,
+        font=PLOT_FONT,
+        title_font=dict(size=16, color="#0F172A"),
+        legend_title="",
+        margin=dict(l=5, r=50, t=50, b=25),
+        plot_bgcolor="#FFFFFF",
         paper_bgcolor="#FFFFFF",
     )
 
     st.plotly_chart(fig, use_container_width=True)
+
+
+def render_dimension_comparison(
+    previous_df: pd.DataFrame,
+    current_df: pd.DataFrame,
+    previous_label: str,
+    current_label: str,
+) -> None:
+    st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+    st.header(f"Comparativo por dimensão | {previous_label} x {current_label}")
+    st.markdown(
+        '<div class="small-muted">Comparação dos principais clientes, setores, responsáveis, categorias e itens entre os dois meses.</div>',
+        unsafe_allow_html=True,
+    )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        clientes = compare_dimension(previous_df, current_df, "empresa", previous_label, current_label, top_n=10)
+        render_dimension_comparison_bar(clientes, "Clientes | Abril x Maio", previous_label, current_label, height=380)
+
+    with col2:
+        setores = compare_dimension(previous_df, current_df, "setor", previous_label, current_label, top_n=8)
+        render_dimension_comparison_bar(setores, "Setores | Abril x Maio", previous_label, current_label, height=380)
+
+    col3, col4 = st.columns(2)
+
+    with col3:
+        responsaveis = compare_dimension(previous_df, current_df, "responsavel", previous_label, current_label, top_n=10)
+        render_dimension_comparison_bar(responsaveis, "Responsáveis | Abril x Maio", previous_label, current_label, height=380)
+
+    with col4:
+        categorias = compare_dimension(previous_df, current_df, "categoria", previous_label, current_label, top_n=8)
+        render_dimension_comparison_bar(categorias, "Categorias | Abril x Maio", previous_label, current_label, height=380)
+
+    itens = compare_dimension(previous_df, current_df, "item", previous_label, current_label, top_n=12)
+    render_dimension_comparison_bar(itens, "Itens | Abril x Maio", previous_label, current_label, height=420)
 
 
 def render_sector_pie(current_df: pd.DataFrame) -> None:
@@ -1133,7 +1301,7 @@ def render_sector_pie(current_df: pd.DataFrame) -> None:
     )
 
     setores = top_table(current_df, "setor", top_n=5, include_other=True)
-    render_pie_chart_from_table(setores, "Distribuição por setor", height=520)
+    render_pie_chart_from_table(setores, "Distribuição por setor", height=350)
 
 
 def render_pain_points_section(current: Dict[str, float], current_label: str) -> None:
@@ -1145,7 +1313,6 @@ def render_pain_points_section(current: Dict[str, float], current_label: str) ->
     )
 
     dores = pain_points(current)
-
     status_counts = dores.groupby("Status").size().reset_index(name="Quantidade")
 
     col1, col2 = st.columns([1, 2])
@@ -1166,16 +1333,16 @@ def render_pain_points_section(current: Dict[str, float], current_label: str) ->
 
         fig_dores.update_traces(
             textinfo="label+value+percent",
-            textfont_size=13,
+            textfont_size=12,
             marker=dict(line=dict(color="#FFFFFF", width=2)),
         )
 
         fig_dores.update_layout(
-            height=390,
+            height=330,
             font=PLOT_FONT,
-            title_font=dict(size=18, color="#0F172A"),
-            legend_font=dict(size=12, color="#0F172A"),
-            margin=dict(l=10, r=10, t=60, b=10),
+            title_font=dict(size=16, color="#0F172A"),
+            legend_font=dict(size=10, color="#0F172A"),
+            margin=dict(l=5, r=5, t=45, b=5),
             paper_bgcolor="#FFFFFF",
         )
 
@@ -1202,25 +1369,32 @@ def render_top_impactadores(current_df: pd.DataFrame) -> None:
     st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
     st.header("Top impactadores do mês atual")
     st.markdown(
-        '<div class="small-muted">Principais concentrações de chamados por dimensão. Cada gráfico mostra Top 5 + Outros e conta chamados únicos quando a coluna de número existe.</div>',
+        '<div class="small-muted">Clientes, responsáveis e itens em barras para facilitar leitura. Setores e categorias em pizza por terem menos grupos.</div>',
         unsafe_allow_html=True,
     )
 
-    chart_configs = [
-        ("Clientes", "empresa"),
-        ("Setores", "setor"),
-        ("Responsáveis", "responsavel"),
-        ("Categorias", "categoria"),
-        ("Itens", "item"),
-    ]
+    col1, col2 = st.columns(2)
 
-    for start in range(0, len(chart_configs), 2):
-        cols = st.columns(2)
+    with col1:
+        clientes = top_table(current_df, "empresa", top_n=10, include_other=False)
+        render_horizontal_bar_from_table(clientes, "Clientes | Top 10", height=340)
 
-        for col, (title, key) in zip(cols, chart_configs[start:start + 2]):
-            with col:
-                table = top_table(current_df, key, top_n=5, include_other=True)
-                render_pie_chart_from_table(table, title, height=430)
+    with col2:
+        setores = top_table(current_df, "setor", top_n=5, include_other=True)
+        render_pie_chart_from_table(setores, "Setores", height=340)
+
+    col3, col4 = st.columns(2)
+
+    with col3:
+        responsaveis = top_table(current_df, "responsavel", top_n=10, include_other=False)
+        render_horizontal_bar_from_table(responsaveis, "Responsáveis | Top 10", height=340)
+
+    with col4:
+        categorias = top_table(current_df, "categoria", top_n=5, include_other=True)
+        render_pie_chart_from_table(categorias, "Categorias", height=340)
+
+    itens = top_table(current_df, "item", top_n=10, include_other=False)
+    render_horizontal_bar_from_table(itens, "Itens | Top 10", height=360)
 
 
 def render_current_sections(
@@ -1315,6 +1489,13 @@ def main() -> None:
         render_evolution_cards(previous, current, previous_label, current_label)
         comp = render_comparison_charts(previous, current, previous_label, current_label)
         render_comparison_table_and_reading(comp, previous_label, current_label)
+
+        render_dimension_comparison(
+            previous_df=previous_df,
+            current_df=current_df,
+            previous_label=previous_label,
+            current_label=current_label,
+        )
 
         render_current_sections(
             current_df=current_df,
