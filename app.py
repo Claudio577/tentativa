@@ -6,6 +6,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+
 st.set_page_config(
     page_title="Dashboard de Chamados | SLA e Operação",
     page_icon="📊",
@@ -247,10 +248,6 @@ html, body, [class*="css"] {
     background: #DBEAFE;
 }
 
-div[data-testid="stDataFrame"] {
-    color: #0F172A !important;
-}
-
 h1, h2, h3 {
     color: #0F172A !important;
     font-weight: 900 !important;
@@ -298,65 +295,44 @@ INDICATORS = [
 
 COLOR_MAP_MONTHS = ["#2563EB", "#F97316"]
 
-PLOT_FONT = dict(
-    family="Arial",
-    size=13,
-    color="#0F172A",
-)
+PLOT_FONT = dict(family="Arial", size=13, color="#0F172A")
 
 
 def find_col(df: pd.DataFrame, key: str) -> Optional[str]:
     aliases = COL_ALIASES.get(key, [])
     normalized_columns = {str(col).strip().lower(): col for col in df.columns}
-
     for alias in aliases:
         col = normalized_columns.get(alias.strip().lower())
         if col is not None:
             return col
-
     return None
 
 
 def series_or_empty(df: pd.DataFrame, key: str) -> pd.Series:
     col = find_col(df, key)
-
     if col is None:
         return pd.Series([pd.NA] * len(df), index=df.index)
-
     return df[col]
 
 
 def clean_text_value(value: Any) -> str:
     if pd.isna(value):
         return ""
-
     text = str(value).strip()
     text = " ".join(text.split())
-
     return text
 
 
 def normalize_empresa_name(value: Any) -> str:
     text = clean_text_value(value)
-
     if not text:
         return ""
 
     upper = text.upper()
-    compact = (
-        upper.replace(".", " ")
-        .replace("-", " ")
-        .replace("_", " ")
-        .replace("/", " ")
-    )
+    compact = upper.replace(".", " ").replace("-", " ").replace("_", " ").replace("/", " ")
     compact = " ".join(compact.split())
 
-    if (
-        "CBLOC" in compact
-        or "C BLOC" in compact
-        or "CBLOC BRASIL" in compact
-        or "CBLO" in compact
-    ):
+    if "CBLOC" in compact or "C BLOC" in compact or "CBLOC BRASIL" in compact or "CBLO" in compact:
         return "CBLOC BRASIL LOCAÇÃO DE EQUIPAMENTOS"
 
     return text
@@ -364,13 +340,10 @@ def normalize_empresa_name(value: Any) -> str:
 
 def normalize_dimension_value(value: Any, key: str) -> str:
     text = clean_text_value(value)
-
     if not text:
         return ""
-
     if key == "empresa":
         return normalize_empresa_name(text)
-
     return text
 
 
@@ -411,20 +384,17 @@ def to_datetime(series: pd.Series) -> pd.Series:
 
 def count_leq_hours(start: pd.Series, end: pd.Series, hours: float) -> int:
     delta_hours = (end - start).dt.total_seconds() / 3600
-
     return int(((delta_hours <= hours) & end.notna() & start.notna()).sum())
 
 
 def count_gt_hours(start: pd.Series, end: pd.Series, hours: float) -> int:
     delta_hours = (end - start).dt.total_seconds() / 3600
-
     return int(((delta_hours > hours) & end.notna() & start.notna()).sum())
 
 
 def pct(numerator: float, denominator: float) -> float:
     if denominator == 0 or pd.isna(denominator):
         return 0.0
-
     return float(numerator) / float(denominator) * 100
 
 
@@ -458,13 +428,7 @@ def calculate_metrics(df: pd.DataFrame) -> Dict[str, float]:
     resolvidos_acima_1h = count_gt_hours(abertura, encerramento, 1)
     primeiro_retorno_ate_1h = count_leq_hours(abertura, primeiro_retorno, 1)
 
-    empresas_unicas = (
-        empresa.dropna()
-        .map(normalize_empresa_name)
-        .replace("", pd.NA)
-        .dropna()
-        .nunique()
-    )
+    empresas_unicas = empresa.dropna().map(normalize_empresa_name).replace("", pd.NA).dropna().nunique()
 
     return {
         "Total de chamados": total,
@@ -499,7 +463,6 @@ def format_pp(value: float) -> str:
 def format_metric(indicator: str, value: float) -> str:
     if indicator.startswith("%"):
         return format_pct(value)
-
     return format_int(value)
 
 
@@ -525,20 +488,14 @@ def delta_direction_class(indicator: str, diff: float) -> str:
         "Backlog por status",
     ]
 
-    neutral_indicators = [
-        "Total de chamados",
-        "Resolvidos acima de 1h",
-    ]
+    neutral_indicators = ["Total de chamados", "Resolvidos acima de 1h"]
 
     if indicator in neutral_indicators:
         return "neutral"
-
     if indicator in good_when_up:
         return "positive" if diff > 0 else "negative"
-
     if indicator in good_when_down:
         return "positive" if diff < 0 else "negative"
-
     return "positive" if diff > 0 else "negative"
 
 
@@ -565,12 +522,7 @@ def kpi_delta_html(
     diff = current_value - previous_value
     delta_class = delta_direction_class(indicator, diff)
     text = delta_text(indicator, current_value, previous_value, previous_label)
-
-    return f"""
-    <div class="kpi-delta-wrap">
-        <span class="kpi-delta {delta_class}">{text}</span>
-    </div>
-    """
+    return f'<span class="kpi-delta {delta_class}">{text}</span>'
 
 
 def kpi_card(
@@ -582,29 +534,26 @@ def kpi_card(
 ) -> None:
     css_class = "good" if status == "good" else "bad" if status == "bad" else ""
     help_class = "good-text" if status == "good" else "bad-text" if status == "bad" else ""
+    delta_block = f'<div class="kpi-delta-wrap">{delta_html}</div>' if delta_html else ""
 
-    st.markdown(
-        f"""
-        <div class="kpi-card {css_class}">
-            <div class="kpi-label">{label}</div>
-            <div class="kpi-value">{value}</div>
-            <div class="kpi-help {help_class}">{help_text}</div>
-            {delta_html}
-        </div>
-        """,
-        unsafe_allow_html=True,
+    html = (
+        f'<div class="kpi-card {css_class}">'
+        f'<div class="kpi-label">{label}</div>'
+        f'<div class="kpi-value">{value}</div>'
+        f'<div class="kpi-help {help_class}">{help_text}</div>'
+        f'{delta_block}'
+        f'</div>'
     )
+    st.markdown(html, unsafe_allow_html=True)
 
 
 def build_comparison(previous: Dict[str, float], current: Dict[str, float]) -> pd.DataFrame:
     rows = []
-
     for indicator in INDICATORS:
         prev = float(previous.get(indicator, 0))
         curr = float(current.get(indicator, 0))
         diff = curr - prev
         variation = pct(diff, prev) if prev else 0.0
-
         rows.append(
             {
                 "Indicador": indicator,
@@ -615,16 +564,13 @@ def build_comparison(previous: Dict[str, float], current: Dict[str, float]) -> p
                 "Tipo": "Percentual" if indicator.startswith("%") else "Quantidade",
             }
         )
-
     return pd.DataFrame(rows)
 
 
 def display_comparison_table(comp: pd.DataFrame) -> None:
     formatted_rows = []
-
     for _, row in comp.iterrows():
         is_pct = row["Tipo"] == "Percentual"
-
         formatted_rows.append(
             {
                 "Indicador": row["Indicador"],
@@ -634,7 +580,6 @@ def display_comparison_table(comp: pd.DataFrame) -> None:
                 "Variação %": format_pct(row["Variação %"], 1),
             }
         )
-
     st.dataframe(pd.DataFrame(formatted_rows), use_container_width=True, hide_index=True)
 
 
@@ -654,27 +599,22 @@ def current_overview_table(current: Dict[str, float]) -> pd.DataFrame:
         ("% FCR 1h", format_pct(current["% FCR 1h"]), "Percentual de chamados encerrados em até 1 hora."),
         ("% 1º retorno até 1h", format_pct(current["% 1º retorno até 1h"]), "Percentual de chamados com primeiro retorno em até 1 hora."),
     ]
-
     return pd.DataFrame(rows, columns=["Indicador", "Valor", "Observação"])
 
 
 def truncate_label(text: str, max_len: int = 30) -> str:
     text = clean_text_value(text)
-
     if len(text) <= max_len:
         return text
-
     return text[: max_len - 3] + "..."
 
 
 def count_dimension(df: pd.DataFrame, key: str) -> pd.Series:
     col = find_col(df, key)
-
     if col is None or df.empty:
         return pd.Series(dtype="int64")
 
     numero_col = find_col(df, "numero")
-
     temp = pd.DataFrame()
     temp["Nome"] = df[col].map(lambda value: normalize_dimension_value(value, key))
     temp = temp[temp["Nome"] != ""]
@@ -689,7 +629,6 @@ def count_dimension(df: pd.DataFrame, key: str) -> pd.Series:
 
 def top_table(df: pd.DataFrame, key: str, top_n: int = 5, include_other: bool = False) -> pd.DataFrame:
     counts = count_dimension(df, key)
-
     if counts.empty:
         return pd.DataFrame(columns=["Nome", "Quantidade", "% do total", "Nome curto"])
 
@@ -697,22 +636,14 @@ def top_table(df: pd.DataFrame, key: str, top_n: int = 5, include_other: bool = 
     top_counts = counts.head(top_n).copy()
 
     if include_other and len(counts) > top_n:
-        outros = counts.iloc[top_n:].sum()
-        top_counts.loc["Outros"] = outros
+        top_counts.loc["Outros"] = counts.iloc[top_n:].sum()
 
-    table = pd.DataFrame(
-        {
-            "Nome": top_counts.index,
-            "Quantidade": top_counts.values,
-        }
-    )
-
+    table = pd.DataFrame({"Nome": top_counts.index, "Quantidade": top_counts.values})
     table["% do total"] = [format_pct(pct(v, total_base), 1) for v in table["Quantidade"]]
     table["Nome curto"] = [
         "Outros" if nome == "Outros" else f"{idx + 1}. {truncate_label(nome, 28)}"
         for idx, nome in enumerate(table["Nome"])
     ]
-
     return table
 
 
@@ -732,14 +663,12 @@ def compare_dimension(
 
     total_counts = prev_counts.add(curr_counts, fill_value=0).sort_values(ascending=False)
     selected_names = total_counts.head(top_n).index.tolist()
-
     rows = []
 
     for idx, name in enumerate(selected_names):
         prev = int(prev_counts.get(name, 0))
         curr = int(curr_counts.get(name, 0))
         diff = curr - prev
-
         rows.append(
             {
                 "Nome": name,
@@ -773,42 +702,36 @@ def pain_points(current: Dict[str, float]) -> pd.DataFrame:
         current["% SLA"] < 80,
         "Cumprimento de SLA dentro da meta recomendada." if current["% SLA"] >= 80 else "SLA abaixo da meta recomendada.",
     )
-
     add(
         "Backlog por status",
         format_int(current["Backlog por status"]),
         current["Backlog por status"] > 0,
         f"Backlog elevado ({format_int(current['Backlog por status'])} chamados ativos).",
     )
-
     add(
         "% 1º retorno até 1h",
         format_pct(current["% 1º retorno até 1h"]),
         current["% 1º retorno até 1h"] < 70,
         "Agilidade de primeiro retorno abaixo da meta de 70%.",
     )
-
     add(
         "Fora do SLA",
         format_int(current["Fora SLA"]),
         current["Fora SLA"] > 0,
         f"Volume considerável de chamados fora do SLA ({format_int(current['Fora SLA'])}).",
     )
-
     add(
         "Tratados acima de 72h",
         format_int(current["Tratados acima de 72h"]),
         current["Tratados acima de 72h"] > 0,
         f"Volume elevado de chamados resolvidos acima de 72h ({format_int(current['Tratados acima de 72h'])}).",
     )
-
     add(
         "Sem encerramento registrado",
         format_int(current["Em aberto / sem encerramento"]),
         current["Em aberto / sem encerramento"] > 0,
         f"Chamados sem encerramento registrado ({format_int(current['Em aberto / sem encerramento'])}).",
     )
-
     return pd.DataFrame(rows)
 
 
@@ -821,7 +744,6 @@ def render_kpis(
     def delta(indicator: str) -> str:
         if previous is None:
             return ""
-
         return kpi_delta_html(indicator, current[indicator], previous[indicator], previous_label)
 
     kpi_cols = st.columns(5)
@@ -837,13 +759,7 @@ def render_kpis(
 
     with kpi_cols[1]:
         sla_status = "good" if current["% SLA"] >= 80 else "bad"
-        kpi_card(
-            "% Dentro do SLA",
-            format_pct(current["% SLA"]),
-            "Meta: ≥ 80%",
-            sla_status,
-            delta("% SLA"),
-        )
+        kpi_card("% Dentro do SLA", format_pct(current["% SLA"]), "Meta: ≥ 80%", sla_status, delta("% SLA"))
 
     with kpi_cols[2]:
         retorno_status = "good" if current["% 1º retorno até 1h"] >= 70 else "bad"
@@ -886,19 +802,16 @@ def render_evolution_card(
     current_value = current[indicator]
     previous_value = previous[indicator]
     diff = current_value - previous_value
-
     delta_class = delta_direction_class(indicator, diff)
     delta_label = delta_text(indicator, current_value, previous_value, previous_label)
     card_class = delta_class
 
     st.markdown(
-        f"""
-        <div class="evo-card {card_class}">
-            <div class="evo-label">{label}</div>
-            <div class="evo-value">{format_metric(indicator, current_value)}</div>
-            <div class="evo-delta {delta_class}">{delta_label}</div>
-        </div>
-        """,
+        f'<div class="evo-card {card_class}">'
+        f'<div class="evo-label">{label}</div>'
+        f'<div class="evo-value">{format_metric(indicator, current_value)}</div>'
+        f'<div class="evo-delta {delta_class}">{delta_label}</div>'
+        f'</div>',
         unsafe_allow_html=True,
     )
 
@@ -932,7 +845,6 @@ def render_evolution_cards(
     for start in range(0, len(cards), 5):
         row_cards = cards[start:start + 5]
         cols = st.columns(5)
-
         for col, (label, indicator) in zip(cols, row_cards):
             with col:
                 render_evolution_card(label, indicator, current, previous, previous_label)
@@ -950,13 +862,10 @@ def render_vertical_chart(
     height: int = 390,
 ) -> None:
     indicators = list(indicator_map.keys())
-
     filtered = chart_df[chart_df["Indicador"].isin(indicators)].copy()
     filtered["Indicador curto"] = filtered["Indicador"].map(indicator_map)
     filtered["Indicador curto"] = pd.Categorical(
-        filtered["Indicador curto"],
-        categories=list(indicator_map.values()),
-        ordered=True,
+        filtered["Indicador curto"], categories=list(indicator_map.values()), ordered=True
     )
     filtered = filtered.sort_values("Indicador curto")
 
@@ -967,7 +876,6 @@ def render_vertical_chart(
         value_name="Valor",
     )
 
-    st.markdown('<div class="section-card">', unsafe_allow_html=True)
     st.markdown(f'<div class="chart-title">{title}</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="chart-subtitle">{subtitle}</div>', unsafe_allow_html=True)
 
@@ -1001,12 +909,10 @@ def render_vertical_chart(
         plot_bgcolor="#FFFFFF",
         paper_bgcolor="#FFFFFF",
     )
-
     fig.update_xaxes(tickangle=-25, tickfont=dict(size=11, color="#0F172A"))
     fig.update_yaxes(tickfont=dict(size=11, color="#0F172A"), gridcolor="#E5E7EB")
 
     st.plotly_chart(fig, use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_comparison_charts(
@@ -1025,17 +931,12 @@ def render_comparison_charts(
     )
 
     chart_df = comp.rename(columns={"Mês anterior": previous_label, "Mês atual": current_label})
-
     col1, col2, col3 = st.columns(3)
 
     with col1:
         render_vertical_chart(
             chart_df,
-            {
-                "Total de chamados": "Chamados",
-                "Dentro SLA": "Dentro SLA",
-                "Fora SLA": "Fora SLA",
-            },
+            {"Total de chamados": "Chamados", "Dentro SLA": "Dentro SLA", "Fora SLA": "Fora SLA"},
             "Volume geral",
             "Chamados recebidos e resultado de SLA.",
             previous_label,
@@ -1081,11 +982,7 @@ def render_comparison_charts(
 
     render_vertical_chart(
         chart_df,
-        {
-            "% SLA": "% SLA",
-            "% FCR 1h": "% FCR 1h",
-            "% 1º retorno até 1h": "% 1º retorno",
-        },
+        {"% SLA": "% SLA", "% FCR 1h": "% FCR 1h", "% 1º retorno até 1h": "% 1º retorno"},
         "Indicadores percentuais",
         "Comparação percentual entre mês anterior e mês atual.",
         previous_label,
@@ -1098,11 +995,7 @@ def render_comparison_charts(
     return comp
 
 
-def render_comparison_table_and_reading(
-    comp: pd.DataFrame,
-    previous_label: str,
-    current_label: str,
-) -> None:
+def render_comparison_table_and_reading(comp: pd.DataFrame, previous_label: str, current_label: str) -> None:
     with st.expander("Ver tabela detalhada da comparação"):
         display_comparison_table(comp)
 
@@ -1129,12 +1022,7 @@ def render_current_overview(current: Dict[str, float], current_label: str) -> No
     st.dataframe(current_overview_table(current), use_container_width=True, hide_index=True)
 
 
-def render_pie_chart_from_table(
-    table: pd.DataFrame,
-    title: str,
-    height: int = 340,
-    hole: float = 0.45,
-) -> None:
+def render_pie_chart_from_table(table: pd.DataFrame, title: str, height: int = 340, hole: float = 0.45) -> None:
     if table.empty:
         st.info("Dados não encontrados para este gráfico.")
         return
@@ -1148,13 +1036,7 @@ def render_pie_chart_from_table(
         color_discrete_sequence=px.colors.qualitative.Bold,
         hover_data=["Nome", "% do total"],
     )
-
-    fig.update_traces(
-        textinfo="percent+label",
-        textfont_size=11,
-        marker=dict(line=dict(color="#FFFFFF", width=2)),
-    )
-
+    fig.update_traces(textinfo="percent+label", textfont_size=11, marker=dict(line=dict(color="#FFFFFF", width=2)))
     fig.update_layout(
         height=height,
         font=PLOT_FONT,
@@ -1164,21 +1046,15 @@ def render_pie_chart_from_table(
         paper_bgcolor="#FFFFFF",
         showlegend=True,
     )
-
     st.plotly_chart(fig, use_container_width=True)
 
 
-def render_horizontal_bar_from_table(
-    table: pd.DataFrame,
-    title: str,
-    height: int = 330,
-) -> None:
+def render_horizontal_bar_from_table(table: pd.DataFrame, title: str, height: int = 330) -> None:
     if table.empty:
         st.info("Dados não encontrados para este gráfico.")
         return
 
     chart_table = table.sort_values("Quantidade", ascending=False).copy()
-
     fig = px.bar(
         chart_table,
         x="Quantidade",
@@ -1189,11 +1065,9 @@ def render_horizontal_bar_from_table(
         hover_data=["Nome", "% do total"],
         color_discrete_sequence=["#2563EB"],
     )
-
     fig.update_traces(texttemplate="%{x:.0f}", textposition="outside")
     fig.update_yaxes(autorange="reversed", tickfont=dict(size=10, color="#0F172A"), title="")
     fig.update_xaxes(title="Quantidade", tickfont=dict(size=10, color="#0F172A"), gridcolor="#E5E7EB")
-
     fig.update_layout(
         height=height,
         font=PLOT_FONT,
@@ -1203,7 +1077,6 @@ def render_horizontal_bar_from_table(
         paper_bgcolor="#FFFFFF",
         showlegend=False,
     )
-
     st.plotly_chart(fig, use_container_width=True)
 
 
@@ -1237,11 +1110,9 @@ def render_dimension_comparison_bar(
         hover_data=["Nome"],
         color_discrete_sequence=COLOR_MAP_MONTHS,
     )
-
     fig.update_traces(texttemplate="%{x:.0f}", textposition="outside")
     fig.update_yaxes(autorange="reversed", tickfont=dict(size=10, color="#0F172A"), title="")
     fig.update_xaxes(title="Quantidade", tickfont=dict(size=10, color="#0F172A"), gridcolor="#E5E7EB")
-
     fig.update_layout(
         height=height,
         font=PLOT_FONT,
@@ -1251,7 +1122,6 @@ def render_dimension_comparison_bar(
         plot_bgcolor="#FFFFFF",
         paper_bgcolor="#FFFFFF",
     )
-
     st.plotly_chart(fig, use_container_width=True)
 
 
@@ -1269,196 +1139,23 @@ def render_dimension_comparison(
     )
 
     col1, col2 = st.columns(2)
-
     with col1:
         clientes = compare_dimension(previous_df, current_df, "empresa", previous_label, current_label, top_n=10)
-        render_dimension_comparison_bar(clientes, "Clientes | Abril x Maio", previous_label, current_label, height=380)
-
+        render_dimension_comparison_bar(clientes, f"Clientes | {previous_label} x {current_label}", previous_label, current_label, height=380)
     with col2:
         setores = compare_dimension(previous_df, current_df, "setor", previous_label, current_label, top_n=8)
-        render_dimension_comparison_bar(setores, "Setores | Abril x Maio", previous_label, current_label, height=380)
+        render_dimension_comparison_bar(setores, f"Setores | {previous_label} x {current_label}", previous_label, current_label, height=380)
 
     col3, col4 = st.columns(2)
-
     with col3:
         responsaveis = compare_dimension(previous_df, current_df, "responsavel", previous_label, current_label, top_n=10)
-        render_dimension_comparison_bar(responsaveis, "Responsáveis | Abril x Maio", previous_label, current_label, height=380)
-
+        render_dimension_comparison_bar(responsaveis, f"Responsáveis | {previous_label} x {current_label}", previous_label, current_label, height=380)
     with col4:
         categorias = compare_dimension(previous_df, current_df, "categoria", previous_label, current_label, top_n=8)
-        render_dimension_comparison_bar(categorias, "Categorias | Abril x Maio", previous_label, current_label, height=380)
+        render_dimension_comparison_bar(categorias, f"Categorias | {previous_label} x {current_label}", previous_label, current_label, height=380)
 
     itens = compare_dimension(previous_df, current_df, "item", previous_label, current_label, top_n=12)
-    render_dimension_comparison_bar(itens, "Itens | Abril x Maio", previous_label, current_label, height=420)
-
-
-def build_operational_comparison(
-    previous: Dict[str, float],
-    current: Dict[str, float],
-    previous_label: str,
-    current_label: str,
-) -> pd.DataFrame:
-    mapping = [
-        {
-            "Dor / Indicador": "% Dentro do SLA",
-            "Métrica": "% SLA",
-            "Tipo": "Percentual",
-            "Sentido": "up_good",
-            "Leitura": "Meta recomendada: SLA igual ou acima de 80%.",
-        },
-        {
-            "Dor / Indicador": "Backlog por status",
-            "Métrica": "Backlog por status",
-            "Tipo": "Quantidade",
-            "Sentido": "down_good",
-            "Leitura": "Quanto menor o backlog, melhor para a operação.",
-        },
-        {
-            "Dor / Indicador": "% 1º retorno até 1h",
-            "Métrica": "% 1º retorno até 1h",
-            "Tipo": "Percentual",
-            "Sentido": "up_good",
-            "Leitura": "Meta recomendada: primeiro retorno até 1h igual ou acima de 70%.",
-        },
-        {
-            "Dor / Indicador": "Fora do SLA",
-            "Métrica": "Fora SLA",
-            "Tipo": "Quantidade",
-            "Sentido": "down_good",
-            "Leitura": "Chamados fora do SLA representam risco operacional.",
-        },
-        {
-            "Dor / Indicador": "Tratados acima de 72h",
-            "Métrica": "Tratados acima de 72h",
-            "Tipo": "Quantidade",
-            "Sentido": "down_good",
-            "Leitura": "Chamados acima de 72h indicam ciclo longo de resolução.",
-        },
-        {
-            "Dor / Indicador": "Sem encerramento registrado",
-            "Métrica": "Em aberto / sem encerramento",
-            "Tipo": "Quantidade",
-            "Sentido": "down_good",
-            "Leitura": "Chamados sem encerramento precisam de acompanhamento.",
-        },
-    ]
-
-    rows = []
-
-    for item in mapping:
-        metric = item["Métrica"]
-        prev = float(previous.get(metric, 0))
-        curr = float(current.get(metric, 0))
-        diff = curr - prev
-
-        if diff == 0:
-            status = "Estável"
-        elif item["Sentido"] == "up_good":
-            status = "Melhorou" if diff > 0 else "Piorou"
-        else:
-            status = "Melhorou" if diff < 0 else "Piorou"
-
-        rows.append(
-            {
-                "Dor / Indicador": item["Dor / Indicador"],
-                "Métrica": metric,
-                previous_label: prev,
-                current_label: curr,
-                "Diferença": diff,
-                "Tipo": item["Tipo"],
-                "Status da evolução": status,
-                "Leitura executiva": item["Leitura"],
-            }
-        )
-
-    return pd.DataFrame(rows)
-
-
-def format_operational_table(
-    table: pd.DataFrame,
-    previous_label: str,
-    current_label: str,
-) -> pd.DataFrame:
-    formatted_rows = []
-
-    for _, row in table.iterrows():
-        is_pct = row["Tipo"] == "Percentual"
-
-        formatted_rows.append(
-            {
-                "Dor / Indicador": row["Dor / Indicador"],
-                previous_label: format_pct(row[previous_label], 1) if is_pct else format_int(row[previous_label]),
-                current_label: format_pct(row[current_label], 1) if is_pct else format_int(row[current_label]),
-                "Diferença": format_pp(row["Diferença"]) if is_pct else f"{int(row['Diferença']):+d}",
-                "Status da evolução": row["Status da evolução"],
-                "Leitura executiva": row["Leitura executiva"],
-            }
-        )
-
-    return pd.DataFrame(formatted_rows)
-
-
-def render_operational_comparison_chart(
-    table: pd.DataFrame,
-    previous_label: str,
-    current_label: str,
-    chart_type: str,
-    title: str,
-    x_title: str,
-    height: int = 350,
-) -> None:
-    filtered = table[table["Tipo"] == chart_type].copy()
-
-    if filtered.empty:
-        st.info("Dados não encontrados para este comparativo.")
-        return
-
-    filtered["Nome curto"] = filtered["Dor / Indicador"].map(lambda x: truncate_label(x, 30))
-
-    long_df = filtered.melt(
-        id_vars=["Dor / Indicador", "Nome curto", "Tipo", "Status da evolução"],
-        value_vars=[previous_label, current_label],
-        var_name="Mês",
-        value_name="Valor",
-    )
-
-    fig = px.bar(
-        long_df,
-        x="Valor",
-        y="Nome curto",
-        color="Mês",
-        orientation="h",
-        barmode="group",
-        text="Valor",
-        title=title,
-        hover_data=["Dor / Indicador"],
-        color_discrete_sequence=COLOR_MAP_MONTHS,
-    )
-
-    if chart_type == "Percentual":
-        fig.update_traces(texttemplate="%{x:.1f}%", textposition="outside")
-        max_value = max(float(long_df["Valor"].max()), 10.0)
-        x_range = [0, max_value + 15]
-    else:
-        fig.update_traces(texttemplate="%{x:.0f}", textposition="outside")
-        max_value = max(float(long_df["Valor"].max()), 10.0)
-        x_range = [0, max_value * 1.22]
-
-    fig.update_yaxes(autorange="reversed", tickfont=dict(size=11, color="#0F172A"), title="")
-    fig.update_xaxes(title=x_title, tickfont=dict(size=11, color="#0F172A"), gridcolor="#E5E7EB")
-
-    fig.update_layout(
-        height=height,
-        font=PLOT_FONT,
-        title_font=dict(size=16, color="#0F172A"),
-        legend_title="",
-        xaxis_range=x_range,
-        margin=dict(l=5, r=60, t=50, b=25),
-        plot_bgcolor="#FFFFFF",
-        paper_bgcolor="#FFFFFF",
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
+    render_dimension_comparison_bar(itens, f"Itens | {previous_label} x {current_label}", previous_label, current_label, height=420)
 
 
 def render_operational_comparison(
@@ -1470,53 +1167,57 @@ def render_operational_comparison(
     st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
     st.header(f"Comparativo operacional | {previous_label} x {current_label}")
     st.markdown(
-        '<div class="small-muted">Comparação das principais dores operacionais entre o mês anterior e o mês atual.</div>',
+        '<div class="small-muted">Comparação direta das principais dores operacionais entre os dois meses.</div>',
         unsafe_allow_html=True,
     )
 
-    op_comp = build_operational_comparison(previous, current, previous_label, current_label)
-
+    comp = build_comparison(previous, current)
+    chart_df = comp.rename(columns={"Mês anterior": previous_label, "Mês atual": current_label})
     col1, col2 = st.columns(2)
 
     with col1:
-        render_operational_comparison_chart(
-            op_comp,
+        render_vertical_chart(
+            chart_df,
+            {
+                "Backlog por status": "Backlog",
+                "Fora SLA": "Fora SLA",
+                "Tratados acima de 72h": "Acima 72h",
+                "Em aberto / sem encerramento": "Sem encerr.",
+            },
+            "Dores em quantidade",
+            "Backlog, atrasos e chamados sem encerramento.",
             previous_label,
             current_label,
-            chart_type="Quantidade",
-            title="Dores operacionais em quantidade",
-            x_title="Quantidade",
-            height=360,
+            "Quantidade",
+            is_percentage=False,
+            height=390,
         )
 
     with col2:
-        render_operational_comparison_chart(
-            op_comp,
+        render_vertical_chart(
+            chart_df,
+            {"% SLA": "% SLA", "% 1º retorno até 1h": "% 1º retorno", "% FCR 1h": "% FCR 1h"},
+            "Dores percentuais",
+            "SLA, primeiro retorno e resolução em até 1 hora.",
             previous_label,
             current_label,
-            chart_type="Percentual",
-            title="Dores operacionais em percentual",
-            x_title="Percentual (%)",
-            height=360,
+            "Percentual (%)",
+            is_percentage=True,
+            height=390,
         )
 
-    formatted_table = format_operational_table(op_comp, previous_label, current_label)
-    st.dataframe(formatted_table, use_container_width=True, hide_index=True)
-
-    pioras = formatted_table.loc[formatted_table["Status da evolução"] == "Piorou", "Dor / Indicador"].tolist()
-    melhoras = formatted_table.loc[formatted_table["Status da evolução"] == "Melhorou", "Dor / Indicador"].tolist()
-
-    if pioras:
-        st.markdown(
-            f"<div class='alert-box'><b>Pontos de atenção:</b> piora em <b>{', '.join(pioras)}</b>.</div>",
-            unsafe_allow_html=True,
-        )
-
-    if melhoras:
-        st.markdown(
-            f"<div class='note-box'><b>Melhoras identificadas:</b> evolução positiva em <b>{', '.join(melhoras)}</b>.</div>",
-            unsafe_allow_html=True,
-        )
+    operational_indicators = [
+        "% SLA",
+        "Backlog por status",
+        "% 1º retorno até 1h",
+        "Fora SLA",
+        "Tratados acima de 72h",
+        "Em aberto / sem encerramento",
+        "% FCR 1h",
+    ]
+    operational_table = comp[comp["Indicador"].isin(operational_indicators)].copy()
+    with st.expander("Ver tabela detalhada do comparativo operacional"):
+        display_comparison_table(operational_table)
 
 
 def render_sector_pie(current_df: pd.DataFrame) -> None:
@@ -1526,7 +1227,6 @@ def render_sector_pie(current_df: pd.DataFrame) -> None:
         '<div class="small-muted">Distribuição dos setores com maior volume de chamados no mês atual.</div>',
         unsafe_allow_html=True,
     )
-
     setores = top_table(current_df, "setor", top_n=5, include_other=True)
     render_pie_chart_from_table(setores, "Distribuição por setor", height=350)
 
@@ -1538,12 +1238,10 @@ def render_pain_points_section(current: Dict[str, float], current_label: str) ->
         '<div class="small-muted">Cruzamento de volume com risco operacional: SLA, backlog, primeiro retorno e tempo de resolução.</div>',
         unsafe_allow_html=True,
     )
-
     dores = pain_points(current)
     status_counts = dores.groupby("Status").size().reset_index(name="Quantidade")
 
     col1, col2 = st.columns([1, 2])
-
     with col1:
         fig_dores = px.pie(
             status_counts,
@@ -1552,18 +1250,9 @@ def render_pain_points_section(current: Dict[str, float], current_label: str) ->
             title="Resumo das dores",
             hole=0.45,
             color="Status",
-            color_discrete_map={
-                "Bom": "#059669",
-                "Crítico": "#DC2626",
-            },
+            color_discrete_map={"Bom": "#059669", "Crítico": "#DC2626"},
         )
-
-        fig_dores.update_traces(
-            textinfo="label+value+percent",
-            textfont_size=12,
-            marker=dict(line=dict(color="#FFFFFF", width=2)),
-        )
-
+        fig_dores.update_traces(textinfo="label+value+percent", textfont_size=12, marker=dict(line=dict(color="#FFFFFF", width=2)))
         fig_dores.update_layout(
             height=330,
             font=PLOT_FONT,
@@ -1572,14 +1261,12 @@ def render_pain_points_section(current: Dict[str, float], current_label: str) ->
             margin=dict(l=5, r=5, t=45, b=5),
             paper_bgcolor="#FFFFFF",
         )
-
         st.plotly_chart(fig_dores, use_container_width=True)
 
     with col2:
         st.dataframe(dores, use_container_width=True, hide_index=True)
 
     critical = dores.loc[dores["Status"] == "Crítico", "Dor / Indicador"].tolist()
-
     if critical:
         st.markdown(
             f"<div class='alert-box'>Análise de dores operacionais para <b>{current_label}</b>: identificamos pontos críticos em: <b>{', '.join(critical)}</b>.</div>",
@@ -1601,21 +1288,17 @@ def render_top_impactadores(current_df: pd.DataFrame) -> None:
     )
 
     col1, col2 = st.columns(2)
-
     with col1:
         clientes = top_table(current_df, "empresa", top_n=10, include_other=False)
         render_horizontal_bar_from_table(clientes, "Clientes | Top 10", height=340)
-
     with col2:
         setores = top_table(current_df, "setor", top_n=5, include_other=True)
         render_pie_chart_from_table(setores, "Setores", height=340)
 
     col3, col4 = st.columns(2)
-
     with col3:
         responsaveis = top_table(current_df, "responsavel", top_n=10, include_other=False)
         render_horizontal_bar_from_table(responsaveis, "Responsáveis | Top 10", height=340)
-
     with col4:
         categorias = top_table(current_df, "categoria", top_n=5, include_other=True)
         render_pie_chart_from_table(categorias, "Categorias", height=340)
@@ -1643,7 +1326,6 @@ def main() -> None:
         '<div class="main-title">Dashboard de Chamados | SLA, Backlog e Operação</div>',
         unsafe_allow_html=True,
     )
-
     st.markdown(
         '<div class="sub-title">Fluxo progressivo: primeiro carregue o mês atual. Depois carregue o mês anterior para comparar.</div>',
         unsafe_allow_html=True,
@@ -1651,7 +1333,6 @@ def main() -> None:
 
     with st.sidebar:
         st.header("Upload das bases")
-
         st.caption("1º passo: carregue o mês atual, por exemplo Maio. O dashboard já aparece.")
         current_label = st.text_input("Nome do mês atual", value="Maio")
         current_upload = st.file_uploader("1) Arquivo do mês atual", type=["xls", "xlsx"], key="current")
@@ -1670,13 +1351,11 @@ def main() -> None:
         st.stop()
 
     current_df = read_excel_smart(current_upload)
-
     if current_df.empty:
         st.error("Não consegui ler o arquivo do mês atual. Confirme se é um Excel .xls ou .xlsx exportado do sistema.")
         st.stop()
 
     current = calculate_metrics(current_df)
-
     if not current:
         st.error("O arquivo foi lido, mas não encontrei linhas válidas de chamados.")
         st.stop()
@@ -1686,7 +1365,6 @@ def main() -> None:
 
     if previous_upload is not None:
         previous_df = read_excel_smart(previous_upload)
-
         if previous_df.empty:
             st.warning("O arquivo do mês anterior foi carregado, mas não consegui encontrar dados válidos.")
         else:
@@ -1699,7 +1377,6 @@ def main() -> None:
             f"<div class='note-box'><b>{current_label} carregado com sucesso.</b> O dashboard abaixo mostra as informações do mês atual. Para ver a diferença nos KPIs, nos cards e nos gráficos, envie também o arquivo de {previous_label} no menu lateral.</div>",
             unsafe_allow_html=True,
         )
-
         render_current_sections(
             current_df=current_df,
             current=current,
@@ -1709,7 +1386,7 @@ def main() -> None:
 
     else:
         st.markdown(
-            f"<div class='note-box'><b>{current_label} e {previous_label} carregados com sucesso.</b> Os KPIs acima já mostram a comparação de {current_label} contra {previous_label}.</div>",
+            f"<div class='note-box'><b>{current_label} e {previous_label} carregados com sucesso.</b> O dashboard agora está em modo comparativo: {previous_label} x {current_label}.</div>",
             unsafe_allow_html=True,
         )
 
@@ -1729,13 +1406,6 @@ def main() -> None:
             current=current,
             previous_label=previous_label,
             current_label=current_label,
-        )
-
-        render_current_sections(
-            current_df=current_df,
-            current=current,
-            current_label=current_label,
-            show_current_overview=False,
         )
 
     with st.expander("Ver prévia da base carregada"):
