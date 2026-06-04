@@ -1079,44 +1079,46 @@ def render_pain_points_section(current: Dict[str, float], current_label: str) ->
     dores = pain_points(current)
 
     status_counts = (
-        dores["Status"]
-        .value_counts()
-        .reset_index()
-        .rename(columns={"index": "Status", "Status": "Quantidade"})
+        dores.groupby("Status")
+        .size()
+        .reset_index(name="Quantidade")
     )
 
     col1, col2 = st.columns([1, 2])
 
     with col1:
-        fig_dores = px.pie(
-            status_counts,
-            names="Status",
-            values="Quantidade",
-            title="Resumo das dores",
-            hole=0.45,
-            color="Status",
-            color_discrete_map={
-                "Bom": "#059669",
-                "Crítico": "#DC2626",
-            },
-        )
+        if status_counts.empty:
+            st.info("Não há dados suficientes para montar o gráfico de dores.")
+        else:
+            fig_dores = px.pie(
+                status_counts,
+                names="Status",
+                values="Quantidade",
+                title="Resumo das dores",
+                hole=0.45,
+                color="Status",
+                color_discrete_map={
+                    "Bom": "#059669",
+                    "Crítico": "#DC2626",
+                },
+            )
 
-        fig_dores.update_traces(
-            textinfo="label+value+percent",
-            textfont_size=13,
-            marker=dict(line=dict(color="#FFFFFF", width=2)),
-        )
+            fig_dores.update_traces(
+                textinfo="label+value+percent",
+                textfont_size=13,
+                marker=dict(line=dict(color="#FFFFFF", width=2)),
+            )
 
-        fig_dores.update_layout(
-            height=390,
-            font=PLOT_FONT,
-            title_font=dict(size=18, color="#0F172A"),
-            legend_font=dict(size=12, color="#0F172A"),
-            margin=dict(l=10, r=10, t=60, b=10),
-            paper_bgcolor="#FFFFFF",
-        )
+            fig_dores.update_layout(
+                height=390,
+                font=PLOT_FONT,
+                title_font=dict(size=18, color="#0F172A"),
+                legend_font=dict(size=12, color="#0F172A"),
+                margin=dict(l=10, r=10, t=60, b=10),
+                paper_bgcolor="#FFFFFF",
+            )
 
-        st.plotly_chart(fig_dores, use_container_width=True)
+            st.plotly_chart(fig_dores, use_container_width=True)
 
     with col2:
         st.dataframe(dores, use_container_width=True, hide_index=True)
@@ -1133,7 +1135,6 @@ def render_pain_points_section(current: Dict[str, float], current_label: str) ->
             f"<div class='note-box'>Análise de dores operacionais para <b>{current_label}</b>: nenhum ponto crítico identificado pelos critérios atuais.</div>",
             unsafe_allow_html=True,
         )
-
 
 def render_top_impactadores(current_df: pd.DataFrame) -> None:
     st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
