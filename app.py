@@ -296,19 +296,6 @@ INDICATORS = [
     "% 1º retorno até 1h",
 ]
 
-WHATSAPP_INDICATORS = [
-    "Total de chamados",
-    "Dentro SLA",
-    "Fora SLA",
-    "% SLA",
-    "Tratados até 72h",
-    "Tratados acima de 72h",
-    "Em aberto / sem encerramento",
-    "Empresas",
-    "First Call Resolution até 1h",
-    "% FCR 1h",
-]
-
 COLOR_MAP_MONTHS = [
     "#2563EB",
     "#F97316",
@@ -324,18 +311,58 @@ PLOT_FONT = dict(
 def find_col(df: pd.DataFrame, key: str) -> Optional[str]:
     aliases = COL_ALIASES.get(key, [])
     normalized_columns = {str(col).strip().lower(): col for col in df.columns}
+
     for alias in aliases:
         col = normalized_columns.get(alias.strip().lower())
         if col is not None:
             return col
+
     return None
 
 
 def series_or_empty(df: pd.DataFrame, key: str) -> pd.Series:
     col = find_col(df, key)
+
     if col is None:
         return pd.Series([pd.NA] * len(df), index=df.index)
+
     return df[col]
+
+
+def clean_text_value(value: Any) -> str:
+    if pd.isna(value):
+        return ""
+
+    text = str(value).strip()
+    text = " ".join(text.split())
+
+    return text
+
+
+def normalize_empresa_name(value: Any) -> str:
+    text = clean_text_value(value)
+
+    if not text:
+        return ""
+
+    upper = text.upper()
+
+    if "CBLOC" in upper or "C BLOC" in upper or "CBLOC BRASIL" in upper:
+        return "CBLOC BRASIL LOCAÇÃO DE EQUIPAMENTOS"
+
+    return text
+
+
+def normalize_dimension_value(value: Any, key: str) -> str:
+    text = clean_text_value(value)
+
+    if not text:
+        return ""
+
+    if key == "empresa":
+        return normalize_empresa_name(text)
+
+    return text
 
 
 def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
@@ -375,17 +402,20 @@ def to_datetime(series: pd.Series) -> pd.Series:
 
 def count_leq_hours(start: pd.Series, end: pd.Series, hours: float) -> int:
     delta_hours = (end - start).dt.total_seconds() / 3600
+
     return int(((delta_hours <= hours) & end.notna() & start.notna()).sum())
 
 
 def count_gt_hours(start: pd.Series, end: pd.Series, hours: float) -> int:
     delta_hours = (end - start).dt.total_seconds() / 3600
+
     return int(((delta_hours > hours) & end.notna() & start.notna()).sum())
 
 
 def pct(numerator: float, denominator: float) -> float:
     if denominator == 0 or pd.isna(denominator):
         return 0.0
+
     return float(numerator) / float(denominator) * 100
 
 
@@ -420,7 +450,13 @@ def calculate_metrics(df: pd.DataFrame) -> Dict[str, float]:
 
     primeiro_retorno_ate_1h = count_leq_hours(abertura, primeiro_retorno, 1)
 
-    empresas_unicas = empresa.dropna().astype(str).str.strip().replace("", pd.NA).dropna().nunique()
+    empresas_unicas = (
+        empresa.dropna()
+        .map(normalize_empresa_name)
+        .replace("", pd.NA)
+        .dropna()
+        .nunique()
+    )
 
     return {
         "Total de chamados": total,
@@ -455,6 +491,7 @@ def format_pp(value: float) -> str:
 def format_metric(indicator: str, value: float) -> str:
     if indicator.startswith("%"):
         return format_pct(value)
+
     return format_int(value)
 
 
@@ -613,34 +650,56 @@ def current_overview_table(current: Dict[str, float]) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=["Indicador", "Valor", "Observação"])
 
 
-def top_table(df: pd.DataFrame, key: str, top_n: int = 5) -> pd.DataFrame:
+def truncate_label(text: str, max_len: int = 30) -> str:
+    text = clean_text_value(text)
+
+    if len(text) <= max_len:
+        return text
+
+    return text[: max_len - 3] + "..."
+
+
+def top_table(df: pd.DataFrame, key: str, top_n: int = 5, include_other: bool = False) -> pd.DataFrame:
     col = find_col(df, key)
 
     if col is None:
-        return pd.DataFrame(columns=["Nome", "Quantidade", "% do total"])
+        return pd.DataFrame(columns=["Nome", "Quantidade", "% do total", "Nome curto"])
 
-    values = df[col].dropna().astype(str).str.strip()
-    values = values[values != ""]
+    numero_col = find_col(df, "numero")
 
-    counts = values.value_counts().head(top_n)
-    total = len(df) if len(df) else 1
+    temp = pd.DataFrame()
+    temp["Nome"] = df[col].map(lambda value: normalize_dimension_value(value, key))
+    temp = temp[temp["Nome"] != ""]
 
-    return pd.DataFrame(
+    if numero_col:
+        temp["Chamado"] = df[numero_col].astype(str).map(clean_text_value)
+        temp = temp[temp["Chamado"] != ""]
+        counts = temp.groupby("Nome")["Chamado"].nunique().sort_values(ascending=False)
+        total_base = temp["Chamado"].nunique() if temp["Chamado"].nunique() else len(df)
+    else:
+        counts = temp["Nome"].value_counts()
+        total_base = len(df) if len(df) else 1
+
+    if counts.empty:
+        return pd.DataFrame(columns=["Nome", "Quantidade", "% do total", "Nome curto"])
+
+    top_counts = counts.head(top_n).copy()
+
+    if include_other and len(counts) > top_n:
+        outros = counts.iloc[top_n:].sum()
+        top_counts.loc["Outros"] = outros
+
+    table = pd.DataFrame(
         {
-            "Nome": counts.index,
-            "Quantidade": counts.values,
-            "% do total": [format_pct(pct(v, total), 1) for v in counts.values],
+            "Nome": top_counts.index,
+            "Quantidade": top_counts.values,
         }
     )
 
+    table["% do total"] = [format_pct(pct(v, total_base), 1) for v in table["Quantidade"]]
+    table["Nome curto"] = table["Nome"].map(lambda x: truncate_label(x, 30))
 
-def display_rank_block(title: str, table: pd.DataFrame) -> None:
-    st.markdown(f"**{title}**")
-
-    if table.empty:
-        st.info("Coluna não encontrada na base.")
-    else:
-        st.dataframe(table, use_container_width=True, hide_index=True, height=230)
+    return table
 
 
 def pain_points(current: Dict[str, float]) -> pd.DataFrame:
@@ -710,6 +769,7 @@ def render_kpis(
     def delta(indicator: str) -> str:
         if previous is None:
             return ""
+
         return kpi_delta_html(indicator, current[indicator], previous[indicator], previous_label)
 
     kpi_cols = st.columns(5)
@@ -965,9 +1025,10 @@ def render_comparison_charts(
             {
                 "Empresas": "Empresas",
                 "First Call Resolution até 1h": "FCR até 1h",
+                "FCR tratado": "FCR tratado",
             },
             "Produtividade",
-            "Empresas atendidas e resoluções rápidas.",
+            "Empresas atendidas, FCR tratado e resoluções rápidas.",
             previous_label,
             current_label,
             "Quantidade",
@@ -980,6 +1041,7 @@ def render_comparison_charts(
         {
             "% SLA": "% SLA",
             "% FCR 1h": "% FCR 1h",
+            "% 1º retorno até 1h": "% 1º retorno",
         },
         "Indicadores percentuais",
         "Comparação percentual entre mês anterior e mês atual.",
@@ -998,8 +1060,8 @@ def render_comparison_table_and_reading(
     previous_label: str,
     current_label: str,
 ) -> None:
-    st.subheader("Comparativo geral")
-    display_comparison_table(comp)
+    with st.expander("Ver tabela detalhada da comparação"):
+        display_comparison_table(comp)
 
     total_row = comp.loc[comp["Indicador"] == "Total de chamados"].iloc[0]
     sla_row = comp.loc[comp["Indicador"] == "% SLA"].iloc[0]
@@ -1024,6 +1086,44 @@ def render_current_overview(current: Dict[str, float], current_label: str) -> No
     st.dataframe(current_overview_table(current), use_container_width=True, hide_index=True)
 
 
+def render_pie_chart_from_table(
+    table: pd.DataFrame,
+    title: str,
+    height: int = 430,
+    hole: float = 0.42,
+) -> None:
+    if table.empty:
+        st.info("Dados não encontrados para este gráfico.")
+        return
+
+    fig = px.pie(
+        table,
+        names="Nome curto",
+        values="Quantidade",
+        title=title,
+        hole=hole,
+        color_discrete_sequence=px.colors.qualitative.Bold,
+        hover_data=["Nome", "% do total"],
+    )
+
+    fig.update_traces(
+        textinfo="label+percent",
+        textfont_size=12,
+        marker=dict(line=dict(color="#FFFFFF", width=2)),
+    )
+
+    fig.update_layout(
+        height=height,
+        font=PLOT_FONT,
+        title_font=dict(size=17, color="#0F172A"),
+        legend_font=dict(size=11, color="#0F172A"),
+        margin=dict(l=10, r=10, t=60, b=10),
+        paper_bgcolor="#FFFFFF",
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+
 def render_sector_pie(current_df: pd.DataFrame) -> None:
     st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
     st.header("Setores com maior demanda")
@@ -1032,40 +1132,8 @@ def render_sector_pie(current_df: pd.DataFrame) -> None:
         unsafe_allow_html=True,
     )
 
-    setores = top_table(current_df, "setor", 10)
-
-    if setores.empty:
-        st.info("Coluna de setor não encontrada na base.")
-        return
-
-    setores = setores.sort_values("Quantidade", ascending=False)
-
-    fig_setores = px.pie(
-        setores,
-        names="Nome",
-        values="Quantidade",
-        title="Distribuição por setor",
-        hole=0.42,
-        color_discrete_sequence=px.colors.qualitative.Bold,
-    )
-
-    fig_setores.update_traces(
-        textinfo="label+percent",
-        textfont_size=13,
-        marker=dict(line=dict(color="#FFFFFF", width=2)),
-    )
-
-    fig_setores.update_layout(
-        height=520,
-        font=PLOT_FONT,
-        title_font=dict(size=18, color="#0F172A"),
-        legend_font=dict(size=12, color="#0F172A"),
-        margin=dict(l=10, r=10, t=60, b=10),
-        paper_bgcolor="#FFFFFF",
-    )
-
-    st.plotly_chart(fig_setores, use_container_width=True)
-    st.dataframe(setores, use_container_width=True, hide_index=True)
+    setores = top_table(current_df, "setor", top_n=5, include_other=True)
+    render_pie_chart_from_table(setores, "Distribuição por setor", height=520)
 
 
 def render_pain_points_section(current: Dict[str, float], current_label: str) -> None:
@@ -1078,47 +1146,40 @@ def render_pain_points_section(current: Dict[str, float], current_label: str) ->
 
     dores = pain_points(current)
 
-    status_counts = (
-        dores.groupby("Status")
-        .size()
-        .reset_index(name="Quantidade")
-    )
+    status_counts = dores.groupby("Status").size().reset_index(name="Quantidade")
 
     col1, col2 = st.columns([1, 2])
 
     with col1:
-        if status_counts.empty:
-            st.info("Não há dados suficientes para montar o gráfico de dores.")
-        else:
-            fig_dores = px.pie(
-                status_counts,
-                names="Status",
-                values="Quantidade",
-                title="Resumo das dores",
-                hole=0.45,
-                color="Status",
-                color_discrete_map={
-                    "Bom": "#059669",
-                    "Crítico": "#DC2626",
-                },
-            )
+        fig_dores = px.pie(
+            status_counts,
+            names="Status",
+            values="Quantidade",
+            title="Resumo das dores",
+            hole=0.45,
+            color="Status",
+            color_discrete_map={
+                "Bom": "#059669",
+                "Crítico": "#DC2626",
+            },
+        )
 
-            fig_dores.update_traces(
-                textinfo="label+value+percent",
-                textfont_size=13,
-                marker=dict(line=dict(color="#FFFFFF", width=2)),
-            )
+        fig_dores.update_traces(
+            textinfo="label+value+percent",
+            textfont_size=13,
+            marker=dict(line=dict(color="#FFFFFF", width=2)),
+        )
 
-            fig_dores.update_layout(
-                height=390,
-                font=PLOT_FONT,
-                title_font=dict(size=18, color="#0F172A"),
-                legend_font=dict(size=12, color="#0F172A"),
-                margin=dict(l=10, r=10, t=60, b=10),
-                paper_bgcolor="#FFFFFF",
-            )
+        fig_dores.update_layout(
+            height=390,
+            font=PLOT_FONT,
+            title_font=dict(size=18, color="#0F172A"),
+            legend_font=dict(size=12, color="#0F172A"),
+            margin=dict(l=10, r=10, t=60, b=10),
+            paper_bgcolor="#FFFFFF",
+        )
 
-            st.plotly_chart(fig_dores, use_container_width=True)
+        st.plotly_chart(fig_dores, use_container_width=True)
 
     with col2:
         st.dataframe(dores, use_container_width=True, hide_index=True)
@@ -1136,34 +1197,41 @@ def render_pain_points_section(current: Dict[str, float], current_label: str) ->
             unsafe_allow_html=True,
         )
 
+
 def render_top_impactadores(current_df: pd.DataFrame) -> None:
     st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
     st.header("Top impactadores do mês atual")
     st.markdown(
-        '<div class="small-muted">Principais concentrações de chamados por dimensão: clientes, setores, responsáveis, categorias e itens.</div>',
+        '<div class="small-muted">Principais concentrações de chamados por dimensão. Cada gráfico mostra Top 5 + Outros e conta chamados únicos quando a coluna de número existe.</div>',
         unsafe_allow_html=True,
     )
 
-    c1, c2, c3, c4, c5 = st.columns(5)
+    chart_configs = [
+        ("Clientes", "empresa"),
+        ("Setores", "setor"),
+        ("Responsáveis", "responsavel"),
+        ("Categorias", "categoria"),
+        ("Itens", "item"),
+    ]
 
-    with c1:
-        display_rank_block("Clientes", top_table(current_df, "empresa", 5))
+    for start in range(0, len(chart_configs), 2):
+        cols = st.columns(2)
 
-    with c2:
-        display_rank_block("Setores", top_table(current_df, "setor", 5))
-
-    with c3:
-        display_rank_block("Responsáveis", top_table(current_df, "responsavel", 5))
-
-    with c4:
-        display_rank_block("Categorias", top_table(current_df, "categoria", 5))
-
-    with c5:
-        display_rank_block("Itens", top_table(current_df, "item", 5))
+        for col, (title, key) in zip(cols, chart_configs[start:start + 2]):
+            with col:
+                table = top_table(current_df, key, top_n=5, include_other=True)
+                render_pie_chart_from_table(table, title, height=430)
 
 
-def render_current_sections(current_df: pd.DataFrame, current: Dict[str, float], current_label: str) -> None:
-    render_current_overview(current, current_label)
+def render_current_sections(
+    current_df: pd.DataFrame,
+    current: Dict[str, float],
+    current_label: str,
+    show_current_overview: bool,
+) -> None:
+    if show_current_overview:
+        render_current_overview(current, current_label)
+
     render_sector_pie(current_df)
     render_pain_points_section(current, current_label)
     render_top_impactadores(current_df)
@@ -1231,7 +1299,12 @@ def main() -> None:
             unsafe_allow_html=True,
         )
 
-        render_current_sections(current_df, current, current_label)
+        render_current_sections(
+            current_df=current_df,
+            current=current,
+            current_label=current_label,
+            show_current_overview=True,
+        )
 
     else:
         st.markdown(
@@ -1242,7 +1315,13 @@ def main() -> None:
         render_evolution_cards(previous, current, previous_label, current_label)
         comp = render_comparison_charts(previous, current, previous_label, current_label)
         render_comparison_table_and_reading(comp, previous_label, current_label)
-        render_current_sections(current_df, current, current_label)
+
+        render_current_sections(
+            current_df=current_df,
+            current=current,
+            current_label=current_label,
+            show_current_overview=False,
+        )
 
     with st.expander("Ver prévia da base carregada"):
         st.write(f"**{current_label}:** {current_df.shape[0]} linhas e {current_df.shape[1]} colunas")
