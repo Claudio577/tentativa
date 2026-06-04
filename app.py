@@ -1292,6 +1292,233 @@ def render_dimension_comparison(
     render_dimension_comparison_bar(itens, "Itens | Abril x Maio", previous_label, current_label, height=420)
 
 
+def build_operational_comparison(
+    previous: Dict[str, float],
+    current: Dict[str, float],
+    previous_label: str,
+    current_label: str,
+) -> pd.DataFrame:
+    mapping = [
+        {
+            "Dor / Indicador": "% Dentro do SLA",
+            "Métrica": "% SLA",
+            "Tipo": "Percentual",
+            "Sentido": "up_good",
+            "Leitura": "Meta recomendada: SLA igual ou acima de 80%.",
+        },
+        {
+            "Dor / Indicador": "Backlog por status",
+            "Métrica": "Backlog por status",
+            "Tipo": "Quantidade",
+            "Sentido": "down_good",
+            "Leitura": "Quanto menor o backlog, melhor para a operação.",
+        },
+        {
+            "Dor / Indicador": "% 1º retorno até 1h",
+            "Métrica": "% 1º retorno até 1h",
+            "Tipo": "Percentual",
+            "Sentido": "up_good",
+            "Leitura": "Meta recomendada: primeiro retorno até 1h igual ou acima de 70%.",
+        },
+        {
+            "Dor / Indicador": "Fora do SLA",
+            "Métrica": "Fora SLA",
+            "Tipo": "Quantidade",
+            "Sentido": "down_good",
+            "Leitura": "Chamados fora do SLA representam risco operacional.",
+        },
+        {
+            "Dor / Indicador": "Tratados acima de 72h",
+            "Métrica": "Tratados acima de 72h",
+            "Tipo": "Quantidade",
+            "Sentido": "down_good",
+            "Leitura": "Chamados acima de 72h indicam ciclo longo de resolução.",
+        },
+        {
+            "Dor / Indicador": "Sem encerramento registrado",
+            "Métrica": "Em aberto / sem encerramento",
+            "Tipo": "Quantidade",
+            "Sentido": "down_good",
+            "Leitura": "Chamados sem encerramento precisam de acompanhamento.",
+        },
+    ]
+
+    rows = []
+
+    for item in mapping:
+        metric = item["Métrica"]
+        prev = float(previous.get(metric, 0))
+        curr = float(current.get(metric, 0))
+        diff = curr - prev
+
+        if diff == 0:
+            status = "Estável"
+        elif item["Sentido"] == "up_good":
+            status = "Melhorou" if diff > 0 else "Piorou"
+        else:
+            status = "Melhorou" if diff < 0 else "Piorou"
+
+        rows.append(
+            {
+                "Dor / Indicador": item["Dor / Indicador"],
+                "Métrica": metric,
+                previous_label: prev,
+                current_label: curr,
+                "Diferença": diff,
+                "Tipo": item["Tipo"],
+                "Status da evolução": status,
+                "Leitura executiva": item["Leitura"],
+            }
+        )
+
+    return pd.DataFrame(rows)
+
+
+def format_operational_table(
+    table: pd.DataFrame,
+    previous_label: str,
+    current_label: str,
+) -> pd.DataFrame:
+    formatted_rows = []
+
+    for _, row in table.iterrows():
+        is_pct = row["Tipo"] == "Percentual"
+
+        formatted_rows.append(
+            {
+                "Dor / Indicador": row["Dor / Indicador"],
+                previous_label: format_pct(row[previous_label], 1) if is_pct else format_int(row[previous_label]),
+                current_label: format_pct(row[current_label], 1) if is_pct else format_int(row[current_label]),
+                "Diferença": format_pp(row["Diferença"]) if is_pct else f"{int(row['Diferença']):+d}",
+                "Status da evolução": row["Status da evolução"],
+                "Leitura executiva": row["Leitura executiva"],
+            }
+        )
+
+    return pd.DataFrame(formatted_rows)
+
+
+def render_operational_comparison_chart(
+    table: pd.DataFrame,
+    previous_label: str,
+    current_label: str,
+    chart_type: str,
+    title: str,
+    x_title: str,
+    height: int = 350,
+) -> None:
+    filtered = table[table["Tipo"] == chart_type].copy()
+
+    if filtered.empty:
+        st.info("Dados não encontrados para este comparativo.")
+        return
+
+    filtered["Nome curto"] = filtered["Dor / Indicador"].map(lambda x: truncate_label(x, 30))
+
+    long_df = filtered.melt(
+        id_vars=["Dor / Indicador", "Nome curto", "Tipo", "Status da evolução"],
+        value_vars=[previous_label, current_label],
+        var_name="Mês",
+        value_name="Valor",
+    )
+
+    fig = px.bar(
+        long_df,
+        x="Valor",
+        y="Nome curto",
+        color="Mês",
+        orientation="h",
+        barmode="group",
+        text="Valor",
+        title=title,
+        hover_data=["Dor / Indicador"],
+        color_discrete_sequence=COLOR_MAP_MONTHS,
+    )
+
+    if chart_type == "Percentual":
+        fig.update_traces(texttemplate="%{x:.1f}%", textposition="outside")
+        max_value = max(float(long_df["Valor"].max()), 10.0)
+        x_range = [0, max_value + 15]
+    else:
+        fig.update_traces(texttemplate="%{x:.0f}", textposition="outside")
+        max_value = max(float(long_df["Valor"].max()), 10.0)
+        x_range = [0, max_value * 1.22]
+
+    fig.update_yaxes(autorange="reversed", tickfont=dict(size=11, color="#0F172A"), title="")
+    fig.update_xaxes(title=x_title, tickfont=dict(size=11, color="#0F172A"), gridcolor="#E5E7EB")
+
+    fig.update_layout(
+        height=height,
+        font=PLOT_FONT,
+        title_font=dict(size=16, color="#0F172A"),
+        legend_title="",
+        xaxis_range=x_range,
+        margin=dict(l=5, r=60, t=50, b=25),
+        plot_bgcolor="#FFFFFF",
+        paper_bgcolor="#FFFFFF",
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def render_operational_comparison(
+    previous: Dict[str, float],
+    current: Dict[str, float],
+    previous_label: str,
+    current_label: str,
+) -> None:
+    st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+    st.header(f"Comparativo operacional | {previous_label} x {current_label}")
+    st.markdown(
+        '<div class="small-muted">Comparação das principais dores operacionais entre o mês anterior e o mês atual.</div>',
+        unsafe_allow_html=True,
+    )
+
+    op_comp = build_operational_comparison(previous, current, previous_label, current_label)
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        render_operational_comparison_chart(
+            op_comp,
+            previous_label,
+            current_label,
+            chart_type="Quantidade",
+            title="Dores operacionais em quantidade",
+            x_title="Quantidade",
+            height=360,
+        )
+
+    with col2:
+        render_operational_comparison_chart(
+            op_comp,
+            previous_label,
+            current_label,
+            chart_type="Percentual",
+            title="Dores operacionais em percentual",
+            x_title="Percentual (%)",
+            height=360,
+        )
+
+    formatted_table = format_operational_table(op_comp, previous_label, current_label)
+    st.dataframe(formatted_table, use_container_width=True, hide_index=True)
+
+    pioras = formatted_table.loc[formatted_table["Status da evolução"] == "Piorou", "Dor / Indicador"].tolist()
+    melhoras = formatted_table.loc[formatted_table["Status da evolução"] == "Melhorou", "Dor / Indicador"].tolist()
+
+    if pioras:
+        st.markdown(
+            f"<div class='alert-box'><b>Pontos de atenção:</b> piora em <b>{', '.join(pioras)}</b>.</div>",
+            unsafe_allow_html=True,
+        )
+
+    if melhoras:
+        st.markdown(
+            f"<div class='note-box'><b>Melhoras identificadas:</b> evolução positiva em <b>{', '.join(melhoras)}</b>.</div>",
+            unsafe_allow_html=True,
+        )
+
+
 def render_sector_pie(current_df: pd.DataFrame) -> None:
     st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
     st.header("Setores com maior demanda")
@@ -1493,6 +1720,13 @@ def main() -> None:
         render_dimension_comparison(
             previous_df=previous_df,
             current_df=current_df,
+            previous_label=previous_label,
+            current_label=current_label,
+        )
+
+        render_operational_comparison(
+            previous=previous,
+            current=current,
             previous_label=previous_label,
             current_label=current_label,
         )
