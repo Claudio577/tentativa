@@ -19,54 +19,59 @@ CUSTOM_CSS = """
     padding-bottom: 2rem;
 }
 
+html, body, [class*="css"] {
+    color: #0F172A;
+}
+
 .main-title {
-    font-size: 2.1rem;
-    font-weight: 800;
+    font-size: 2.15rem;
+    font-weight: 900;
     line-height: 1.25;
     margin-top: 0.6rem;
-    margin-bottom: 0.4rem;
-    color: #111827;
+    margin-bottom: 0.35rem;
+    color: #0F172A;
 }
 
 .sub-title {
-    font-size: 0.98rem;
-    color: #6B7280;
-    margin-bottom: 1.2rem;
+    font-size: 1rem;
+    color: #334155;
+    margin-bottom: 1.4rem;
+    font-weight: 500;
 }
 
 .kpi-card {
     background: #F8FAFC;
-    border: 1px solid #E5E7EB;
-    border-left: 6px solid #64748B;
-    border-radius: 12px;
-    box-shadow: 0 3px 12px rgba(15, 23, 42, 0.08);
+    border: 1px solid #CBD5E1;
+    border-left: 6px solid #475569;
+    border-radius: 14px;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.10);
     padding: 18px 16px 16px 16px;
-    min-height: 140px;
+    min-height: 145px;
 }
 
 .kpi-card.good {
     background: #ECFDF5;
-    border-color: #A7F3D0;
-    border-left-color: #10B981;
+    border-color: #86EFAC;
+    border-left-color: #059669;
 }
 
 .kpi-card.bad {
     background: #FEF2F2;
-    border-color: #FECACA;
-    border-left-color: #EF4444;
+    border-color: #FCA5A5;
+    border-left-color: #DC2626;
 }
 
 .kpi-label {
     font-size: 0.76rem;
-    color: #64748B;
-    font-weight: 800;
+    color: #334155;
+    font-weight: 900;
     text-transform: uppercase;
     letter-spacing: .055rem;
     text-align: center;
 }
 
 .kpi-value {
-    font-size: 1.95rem;
+    font-size: 2rem;
     color: #020617;
     font-weight: 900;
     line-height: 1.2;
@@ -75,35 +80,35 @@ CUSTOM_CSS = """
 }
 
 .kpi-help {
-    font-size: 0.80rem;
-    color: #475569;
+    font-size: 0.82rem;
+    color: #334155;
     text-align: center;
     margin-top: 8px;
+    font-weight: 600;
 }
 
 .kpi-help.good-text {
-    color: #059669;
-    font-weight: 700;
+    color: #047857;
+    font-weight: 800;
 }
 
 .kpi-help.bad-text {
-    color: #DC2626;
-    font-weight: 700;
+    color: #B91C1C;
+    font-weight: 800;
+}
+
+.kpi-delta-wrap {
+    text-align: center;
+    margin-top: 9px;
 }
 
 .kpi-delta {
     font-size: 0.78rem;
     text-align: center;
-    margin-top: 8px;
-    font-weight: 800;
-    padding: 4px 8px;
+    font-weight: 900;
+    padding: 5px 9px;
     border-radius: 999px;
     display: inline-block;
-}
-
-.kpi-delta-wrap {
-    text-align: center;
-    margin-top: 8px;
 }
 
 .kpi-delta.positive {
@@ -124,54 +129,135 @@ CUSTOM_CSS = """
 .section-divider {
     border: 0;
     border-top: 1px solid #CBD5E1;
-    margin: 2.0rem 0 1.7rem 0;
+    margin: 2.1rem 0 1.7rem 0;
 }
 
 .note-box {
     border-left: 5px solid #2563EB;
-    background: #F8FAFC;
-    border-radius: 9px;
+    background: #EFF6FF;
+    border-radius: 10px;
     padding: 15px 18px;
     margin-top: 18px;
     color: #0F172A;
+    font-weight: 500;
 }
 
 .alert-box {
-    border-left: 5px solid #EF4444;
+    border-left: 5px solid #DC2626;
     background: #FEF2F2;
-    border-radius: 9px;
+    border-radius: 10px;
     padding: 15px 18px;
     margin-top: 18px;
     color: #0F172A;
+    font-weight: 500;
 }
 
 .small-muted {
-    color: #6B7280;
-    font-size: 0.9rem;
+    color: #334155;
+    font-size: 0.92rem;
+    font-weight: 500;
 }
 
 .chart-title {
-    font-size: 1.02rem;
-    font-weight: 800;
-    color: #111827;
+    font-size: 1.05rem;
+    font-weight: 900;
+    color: #0F172A;
     margin-top: 0.2rem;
     margin-bottom: 0.15rem;
 }
 
 .chart-subtitle {
-    font-size: 0.84rem;
-    color: #6B7280;
+    font-size: 0.88rem;
+    color: #334155;
     margin-bottom: 0.4rem;
+    font-weight: 500;
 }
 
 .section-card {
     background: #FFFFFF;
-    border: 1px solid #E5E7EB;
-    border-radius: 12px;
+    border: 1px solid #CBD5E1;
+    border-radius: 14px;
     padding: 16px 16px 8px 16px;
-    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
+    box-shadow: 0 3px 12px rgba(15, 23, 42, 0.08);
     margin-top: 14px;
     margin-bottom: 20px;
+}
+
+.evo-card {
+    background: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    border-radius: 14px;
+    padding: 15px 14px 13px 14px;
+    min-height: 125px;
+    box-shadow: 0 3px 12px rgba(15, 23, 42, 0.08);
+    border-left: 5px solid #2563EB;
+    margin-bottom: 14px;
+}
+
+.evo-card.good {
+    border-left-color: #059669;
+    background: #F0FDF4;
+}
+
+.evo-card.bad {
+    border-left-color: #DC2626;
+    background: #FEF2F2;
+}
+
+.evo-card.neutral {
+    border-left-color: #2563EB;
+    background: #EFF6FF;
+}
+
+.evo-label {
+    font-size: 0.82rem;
+    color: #334155;
+    font-weight: 800;
+    margin-bottom: 8px;
+}
+
+.evo-value {
+    font-size: 1.75rem;
+    color: #020617;
+    font-weight: 900;
+    line-height: 1.1;
+}
+
+.evo-delta {
+    font-size: 0.78rem;
+    font-weight: 900;
+    margin-top: 8px;
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 999px;
+}
+
+.evo-delta.positive {
+    color: #047857;
+    background: #D1FAE5;
+}
+
+.evo-delta.negative {
+    color: #B91C1C;
+    background: #FEE2E2;
+}
+
+.evo-delta.neutral {
+    color: #1D4ED8;
+    background: #DBEAFE;
+}
+
+div[data-testid="stDataFrame"] {
+    color: #0F172A !important;
+}
+
+h1, h2, h3 {
+    color: #0F172A !important;
+    font-weight: 900 !important;
+}
+
+p, span, label {
+    color: #0F172A;
 }
 </style>
 """
@@ -209,6 +295,30 @@ INDICATORS = [
     "% FCR 1h",
     "% 1º retorno até 1h",
 ]
+
+WHATSAPP_INDICATORS = [
+    "Total de chamados",
+    "Dentro SLA",
+    "Fora SLA",
+    "% SLA",
+    "Tratados até 72h",
+    "Tratados acima de 72h",
+    "Em aberto / sem encerramento",
+    "Empresas",
+    "First Call Resolution até 1h",
+    "% FCR 1h",
+]
+
+COLOR_MAP_MONTHS = [
+    "#2563EB",
+    "#F97316",
+]
+
+PLOT_FONT = dict(
+    family="Arial",
+    size=13,
+    color="#0F172A",
+)
 
 
 def find_col(df: pd.DataFrame, key: str) -> Optional[str]:
@@ -342,6 +452,65 @@ def format_pp(value: float) -> str:
     return f"{value:+.1f}".replace(".", ",") + " p.p."
 
 
+def format_metric(indicator: str, value: float) -> str:
+    if indicator.startswith("%"):
+        return format_pct(value)
+    return format_int(value)
+
+
+def delta_direction_class(indicator: str, diff: float) -> str:
+    if diff == 0:
+        return "neutral"
+
+    good_when_up = [
+        "Dentro SLA",
+        "% SLA",
+        "Tratados até 72h",
+        "Empresas",
+        "First Call Resolution até 1h",
+        "% FCR 1h",
+        "% 1º retorno até 1h",
+        "FCR tratado",
+    ]
+
+    good_when_down = [
+        "Fora SLA",
+        "Tratados acima de 72h",
+        "Em aberto / sem encerramento",
+        "Backlog por status",
+    ]
+
+    neutral_indicators = [
+        "Total de chamados",
+        "Resolvidos acima de 1h",
+    ]
+
+    if indicator in neutral_indicators:
+        return "neutral"
+
+    if indicator in good_when_up:
+        return "positive" if diff > 0 else "negative"
+
+    if indicator in good_when_down:
+        return "positive" if diff < 0 else "negative"
+
+    return "positive" if diff > 0 else "negative"
+
+
+def delta_text(indicator: str, current_value: float, previous_value: float, previous_label: str) -> str:
+    diff = current_value - previous_value
+    arrow = "↑" if diff > 0 else "↓" if diff < 0 else "→"
+
+    if indicator.startswith("%"):
+        return f"{arrow} {format_pp(diff)} vs {previous_label}"
+
+    if previous_value:
+        variation = pct(diff, previous_value)
+        return f"{arrow} {int(diff):+d} | {format_pct(variation)} vs {previous_label}"
+
+    return f"{arrow} {int(diff):+d} vs {previous_label}"
+
+
 def kpi_delta_html(
     indicator: str,
     current_value: float,
@@ -349,27 +518,8 @@ def kpi_delta_html(
     previous_label: str,
 ) -> str:
     diff = current_value - previous_value
-    arrow = "↑" if diff > 0 else "↓" if diff < 0 else "→"
-
-    if indicator.startswith("%"):
-        text = f"{arrow} {format_pp(diff)} vs {previous_label}"
-    else:
-        if previous_value:
-            variation = pct(diff, previous_value)
-            text = f"{arrow} {int(diff):+d} | {format_pct(variation)} vs {previous_label}"
-        else:
-            text = f"{arrow} {int(diff):+d} vs {previous_label}"
-
-    if diff == 0:
-        delta_class = "neutral"
-    elif indicator in ["% SLA", "% 1º retorno até 1h"]:
-        delta_class = "positive" if diff > 0 else "negative"
-    elif indicator in ["Backlog por status", "Tratados acima de 72h"]:
-        delta_class = "positive" if diff < 0 else "negative"
-    elif indicator == "Total de chamados":
-        delta_class = "neutral"
-    else:
-        delta_class = "positive" if diff > 0 else "negative"
+    delta_class = delta_direction_class(indicator, diff)
+    text = delta_text(indicator, current_value, previous_value, previous_label)
 
     return f"""
     <div class="kpi-delta-wrap">
@@ -387,6 +537,7 @@ def kpi_card(
 ) -> None:
     css_class = "good" if status == "good" else "bad" if status == "bad" else ""
     help_class = "good-text" if status == "good" else "bad-text" if status == "bad" else ""
+
     st.markdown(
         f"""
         <div class="kpi-card {css_class}">
@@ -402,11 +553,13 @@ def kpi_card(
 
 def build_comparison(previous: Dict[str, float], current: Dict[str, float]) -> pd.DataFrame:
     rows = []
+
     for indicator in INDICATORS:
         prev = float(previous.get(indicator, 0))
         curr = float(current.get(indicator, 0))
         diff = curr - prev
         variation = pct(diff, prev) if prev else 0.0
+
         rows.append(
             {
                 "Indicador": indicator,
@@ -417,13 +570,16 @@ def build_comparison(previous: Dict[str, float], current: Dict[str, float]) -> p
                 "Tipo": "Percentual" if indicator.startswith("%") else "Quantidade",
             }
         )
+
     return pd.DataFrame(rows)
 
 
 def display_comparison_table(comp: pd.DataFrame) -> None:
     formatted_rows = []
+
     for _, row in comp.iterrows():
         is_pct = row["Tipo"] == "Percentual"
+
         formatted_rows.append(
             {
                 "Indicador": row["Indicador"],
@@ -433,6 +589,7 @@ def display_comparison_table(comp: pd.DataFrame) -> None:
                 "Variação %": format_pct(row["Variação %"], 1),
             }
         )
+
     st.dataframe(pd.DataFrame(formatted_rows), use_container_width=True, hide_index=True)
 
 
@@ -452,17 +609,22 @@ def current_overview_table(current: Dict[str, float]) -> pd.DataFrame:
         ("% FCR 1h", format_pct(current["% FCR 1h"]), "Percentual de chamados encerrados em até 1 hora."),
         ("% 1º retorno até 1h", format_pct(current["% 1º retorno até 1h"]), "Percentual de chamados com primeiro retorno em até 1 hora."),
     ]
+
     return pd.DataFrame(rows, columns=["Indicador", "Valor", "Observação"])
 
 
 def top_table(df: pd.DataFrame, key: str, top_n: int = 5) -> pd.DataFrame:
     col = find_col(df, key)
+
     if col is None:
         return pd.DataFrame(columns=["Nome", "Quantidade", "% do total"])
+
     values = df[col].dropna().astype(str).str.strip()
     values = values[values != ""]
+
     counts = values.value_counts().head(top_n)
     total = len(df) if len(df) else 1
+
     return pd.DataFrame(
         {
             "Nome": counts.index,
@@ -474,6 +636,7 @@ def top_table(df: pd.DataFrame, key: str, top_n: int = 5) -> pd.DataFrame:
 
 def display_rank_block(title: str, table: pd.DataFrame) -> None:
     st.markdown(f"**{title}**")
+
     if table.empty:
         st.info("Coluna não encontrada na base.")
     else:
@@ -499,36 +662,42 @@ def pain_points(current: Dict[str, float]) -> pd.DataFrame:
         current["% SLA"] < 80,
         "Cumprimento de SLA dentro da meta recomendada." if current["% SLA"] >= 80 else "SLA abaixo da meta recomendada.",
     )
+
     add(
         "Backlog por status",
         format_int(current["Backlog por status"]),
         current["Backlog por status"] > 0,
         f"Backlog elevado ({format_int(current['Backlog por status'])} chamados ativos).",
     )
+
     add(
         "% 1º retorno até 1h",
         format_pct(current["% 1º retorno até 1h"]),
         current["% 1º retorno até 1h"] < 70,
         "Agilidade de primeiro retorno abaixo da meta de 70%.",
     )
+
     add(
         "Fora do SLA",
         format_int(current["Fora SLA"]),
         current["Fora SLA"] > 0,
         f"Volume considerável de chamados fora do SLA ({format_int(current['Fora SLA'])}).",
     )
+
     add(
         "Tratados acima de 72h",
         format_int(current["Tratados acima de 72h"]),
         current["Tratados acima de 72h"] > 0,
         f"Volume elevado de chamados resolvidos acima de 72h ({format_int(current['Tratados acima de 72h'])}).",
     )
+
     add(
         "Sem encerramento registrado",
         format_int(current["Em aberto / sem encerramento"]),
         current["Em aberto / sem encerramento"] > 0,
         f"Chamados sem encerramento registrado ({format_int(current['Em aberto / sem encerramento'])}).",
     )
+
     return pd.DataFrame(rows)
 
 
@@ -595,21 +764,92 @@ def render_kpis(
         )
 
 
-def render_vertical_quantity_chart(
+def render_evolution_card(
+    label: str,
+    indicator: str,
+    current: Dict[str, float],
+    previous: Dict[str, float],
+    previous_label: str,
+) -> None:
+    current_value = current[indicator]
+    previous_value = previous[indicator]
+    diff = current_value - previous_value
+
+    delta_class = delta_direction_class(indicator, diff)
+    delta_label = delta_text(indicator, current_value, previous_value, previous_label)
+    card_class = delta_class
+
+    st.markdown(
+        f"""
+        <div class="evo-card {card_class}">
+            <div class="evo-label">{label}</div>
+            <div class="evo-value">{format_metric(indicator, current_value)}</div>
+            <div class="evo-delta {delta_class}">{delta_label}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_evolution_cards(
+    previous: Dict[str, float],
+    current: Dict[str, float],
+    previous_label: str,
+    current_label: str,
+) -> None:
+    st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+    st.header(f"Resumo da evolução | {previous_label} x {current_label}")
+    st.markdown(
+        '<div class="small-muted">Cards executivos com os mesmos indicadores usados nos gráficos de comparação.</div>',
+        unsafe_allow_html=True,
+    )
+
+    cards = [
+        ("Chamados no mês atual", "Total de chamados"),
+        ("Dentro SLA atual", "Dentro SLA"),
+        ("Fora SLA atual", "Fora SLA"),
+        ("% SLA atual", "% SLA"),
+        ("Até 72h atual", "Tratados até 72h"),
+        ("Acima 72h atual", "Tratados acima de 72h"),
+        ("Em aberto atual", "Em aberto / sem encerramento"),
+        ("Empresas atual", "Empresas"),
+        ("FCR até 1h atual", "First Call Resolution até 1h"),
+        ("% FCR 1h atual", "% FCR 1h"),
+    ]
+
+    for start in range(0, len(cards), 5):
+        row_cards = cards[start:start + 5]
+        cols = st.columns(5)
+
+        for col, (label, indicator) in zip(cols, row_cards):
+            with col:
+                render_evolution_card(label, indicator, current, previous, previous_label)
+
+
+def render_vertical_chart(
     chart_df: pd.DataFrame,
-    indicators: list[str],
+    indicator_map: Dict[str, str],
     title: str,
     subtitle: str,
     previous_label: str,
     current_label: str,
-    height: int = 420,
+    y_title: str,
+    is_percentage: bool = False,
+    height: int = 430,
 ) -> None:
+    indicators = list(indicator_map.keys())
+
     filtered = chart_df[chart_df["Indicador"].isin(indicators)].copy()
-    filtered["Indicador"] = pd.Categorical(filtered["Indicador"], categories=indicators, ordered=True)
-    filtered = filtered.sort_values("Indicador")
+    filtered["Indicador curto"] = filtered["Indicador"].map(indicator_map)
+    filtered["Indicador curto"] = pd.Categorical(
+        filtered["Indicador curto"],
+        categories=list(indicator_map.values()),
+        ordered=True,
+    )
+    filtered = filtered.sort_values("Indicador curto")
 
     long_df = filtered.melt(
-        id_vars="Indicador",
+        id_vars=["Indicador", "Indicador curto"],
         value_vars=[previous_label, current_label],
         var_name="Mês",
         value_name="Valor",
@@ -619,87 +859,65 @@ def render_vertical_quantity_chart(
     st.markdown(f'<div class="chart-title">{title}</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="chart-subtitle">{subtitle}</div>', unsafe_allow_html=True)
 
+    max_value = max(float(long_df["Valor"].max()), 10.0)
+
     fig = px.bar(
         long_df,
-        x="Indicador",
+        x="Indicador curto",
         y="Valor",
         color="Mês",
         barmode="group",
         text="Valor",
+        color_discrete_sequence=COLOR_MAP_MONTHS,
     )
-    fig.update_traces(texttemplate="%{y:.0f}", textposition="outside")
+
+    if is_percentage:
+        fig.update_traces(texttemplate="%{y:.1f}%", textposition="outside")
+        y_range = [0, max_value + 15]
+    else:
+        fig.update_traces(texttemplate="%{y:.0f}", textposition="outside")
+        y_range = [0, max_value * 1.18]
+
     fig.update_layout(
         height=height,
         xaxis_title="",
-        yaxis_title="Quantidade",
+        yaxis_title=y_title,
         legend_title="",
-        margin=dict(l=10, r=10, t=20, b=40),
+        font=PLOT_FONT,
+        yaxis_range=y_range,
+        margin=dict(l=10, r=10, t=20, b=70),
+        plot_bgcolor="#FFFFFF",
+        paper_bgcolor="#FFFFFF",
     )
-    fig.update_xaxes(tickangle=-20)
+
+    fig.update_xaxes(
+        tickangle=-25,
+        tickfont=dict(size=12, color="#0F172A"),
+        title_font=dict(color="#0F172A"),
+    )
+
+    fig.update_yaxes(
+        tickfont=dict(size=12, color="#0F172A"),
+        title_font=dict(color="#0F172A"),
+        gridcolor="#E5E7EB",
+    )
+
     st.plotly_chart(fig, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 
-def render_percentage_chart(
-    chart_df: pd.DataFrame,
-    previous_label: str,
-    current_label: str,
-) -> None:
-    indicators = ["% SLA", "% FCR 1h", "% 1º retorno até 1h"]
-
-    filtered = chart_df[chart_df["Indicador"].isin(indicators)].copy()
-    filtered["Indicador"] = pd.Categorical(filtered["Indicador"], categories=indicators, ordered=True)
-    filtered = filtered.sort_values("Indicador")
-
-    long_df = filtered.melt(
-        id_vars="Indicador",
-        value_vars=[previous_label, current_label],
-        var_name="Mês",
-        value_name="Valor",
-    )
-
-    st.markdown('<div class="section-card">', unsafe_allow_html=True)
-    st.markdown('<div class="chart-title">Indicadores percentuais</div>', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="chart-subtitle">Comparação percentual entre o mês anterior e o mês atual.</div>',
-        unsafe_allow_html=True,
-    )
-
-    max_value = max(long_df["Valor"].max(), 10)
-
-    fig = px.bar(
-        long_df,
-        x="Indicador",
-        y="Valor",
-        color="Mês",
-        barmode="group",
-        text="Valor",
-    )
-    fig.update_traces(texttemplate="%{y:.1f}%", textposition="outside")
-    fig.update_layout(
-        height=430,
-        xaxis_title="",
-        yaxis_title="Percentual (%)",
-        legend_title="",
-        yaxis_range=[0, max_value + 15],
-        margin=dict(l=10, r=10, t=20, b=30),
-    )
-    st.plotly_chart(fig, use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-
-
-def render_comparison(
+def render_comparison_charts(
     previous: Dict[str, float],
     current: Dict[str, float],
     previous_label: str,
     current_label: str,
-) -> None:
+) -> pd.DataFrame:
     comp = build_comparison(previous, current)
 
     st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
     st.header("Comparação entre mês anterior e mês atual")
     st.markdown(
-        f'<div class="small-muted">Ordem cronológica: primeiro {previous_label}, depois {current_label}. A comparação aparece somente depois que os dois arquivos são carregados.</div>',
+        f'<div class="small-muted">Gráficos de barras verticais usando os mesmos indicadores do resumo acima. Ordem: {previous_label} x {current_label}.</div>',
         unsafe_allow_html=True,
     )
 
@@ -708,75 +926,105 @@ def render_comparison(
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        render_vertical_quantity_chart(
+        render_vertical_chart(
             chart_df,
-            ["Total de chamados", "Dentro SLA", "Fora SLA"],
+            {
+                "Total de chamados": "Chamados",
+                "Dentro SLA": "Dentro SLA",
+                "Fora SLA": "Fora SLA",
+            },
             "Volume geral",
-            "Principais volumes de chamados e SLA.",
+            "Chamados recebidos e resultado de SLA.",
             previous_label,
             current_label,
-            height=420,
+            "Quantidade",
+            is_percentage=False,
+            height=430,
         )
 
     with col2:
-        render_vertical_quantity_chart(
+        render_vertical_chart(
             chart_df,
-            [
-                "Tratados até 72h",
-                "Tratados acima de 72h",
-                "Em aberto / sem encerramento",
-                "Backlog por status",
-            ],
-            "Tratativas e backlog",
-            "Tempo de resolução, chamados abertos e backlog.",
+            {
+                "Tratados até 72h": "Até 72h",
+                "Tratados acima de 72h": "Acima 72h",
+                "Em aberto / sem encerramento": "Em aberto",
+            },
+            "Tratativas",
+            "Tempo de resolução e chamados sem encerramento.",
             previous_label,
             current_label,
-            height=420,
+            "Quantidade",
+            is_percentage=False,
+            height=430,
         )
 
     with col3:
-        render_vertical_quantity_chart(
+        render_vertical_chart(
             chart_df,
-            [
-                "FCR tratado",
-                "First Call Resolution até 1h",
-                "Resolvidos acima de 1h",
-                "Empresas",
-            ],
+            {
+                "Empresas": "Empresas",
+                "First Call Resolution até 1h": "FCR até 1h",
+            },
             "Produtividade",
-            "Resoluções, produtividade e empresas atendidas.",
+            "Empresas atendidas e resoluções rápidas.",
             previous_label,
             current_label,
-            height=420,
+            "Quantidade",
+            is_percentage=False,
+            height=430,
         )
 
-    render_percentage_chart(chart_df, previous_label, current_label)
+    render_vertical_chart(
+        chart_df,
+        {
+            "% SLA": "% SLA",
+            "% FCR 1h": "% FCR 1h",
+        },
+        "Indicadores percentuais",
+        "Comparação percentual entre mês anterior e mês atual.",
+        previous_label,
+        current_label,
+        "Percentual (%)",
+        is_percentage=True,
+        height=430,
+    )
 
+    return comp
+
+
+def render_comparison_table_and_reading(
+    comp: pd.DataFrame,
+    previous_label: str,
+    current_label: str,
+) -> None:
     st.subheader("Comparativo geral")
     display_comparison_table(comp)
 
     total_row = comp.loc[comp["Indicador"] == "Total de chamados"].iloc[0]
     sla_row = comp.loc[comp["Indicador"] == "% SLA"].iloc[0]
-    retorno_row = comp.loc[comp["Indicador"] == "% 1º retorno até 1h"].iloc[0]
+    fcr_row = comp.loc[comp["Indicador"] == "% FCR 1h"].iloc[0]
 
     st.markdown(
         f"""
         <div class='note-box'>
         <b>Leitura da evolução:</b> de {previous_label} para {current_label}, o volume variou
         <b>{int(total_row['Diferença']):+d} chamados</b> ({format_pct(total_row['Variação %'])}).
-        O SLA mudou <b>{format_pp(sla_row['Diferença'])}</b> e o primeiro retorno até 1h mudou
-        <b>{format_pp(retorno_row['Diferença'])}</b>.
+        O SLA mudou <b>{format_pp(sla_row['Diferença'])}</b> e o FCR até 1h mudou
+        <b>{format_pp(fcr_row['Diferença'])}</b>.
         </div>
         """,
         unsafe_allow_html=True,
     )
 
 
-def render_current_sections(current_df: pd.DataFrame, current: Dict[str, float], current_label: str) -> None:
+def render_current_overview(current: Dict[str, float], current_label: str) -> None:
     st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
     st.header(f"Comparativo geral do mês atual | {current_label}")
     st.dataframe(current_overview_table(current), use_container_width=True, hide_index=True)
 
+
+def render_sector_pie(current_df: pd.DataFrame) -> None:
     st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
     st.header("Setores com maior demanda")
     st.markdown(
@@ -786,38 +1034,108 @@ def render_current_sections(current_df: pd.DataFrame, current: Dict[str, float],
 
     setores = top_table(current_df, "setor", 10)
 
-    if not setores.empty:
-        setores = setores.sort_values("Quantidade", ascending=False)
+    if setores.empty:
+        st.info("Coluna de setor não encontrada na base.")
+        return
 
-        fig_setores = px.pie(
-            setores,
-            names="Nome",
-            values="Quantidade",
-            title="Distribuição por setor",
-            hole=0.35,
-        )
-        fig_setores.update_traces(textinfo="percent+label")
-        fig_setores.update_layout(height=500, margin=dict(l=10, r=10, t=60, b=10))
-        st.plotly_chart(fig_setores, use_container_width=True)
+    setores = setores.sort_values("Quantidade", ascending=False)
 
+    fig_setores = px.pie(
+        setores,
+        names="Nome",
+        values="Quantidade",
+        title="Distribuição por setor",
+        hole=0.42,
+        color_discrete_sequence=px.colors.qualitative.Bold,
+    )
+
+    fig_setores.update_traces(
+        textinfo="label+percent",
+        textfont_size=13,
+        marker=dict(line=dict(color="#FFFFFF", width=2)),
+    )
+
+    fig_setores.update_layout(
+        height=520,
+        font=PLOT_FONT,
+        title_font=dict(size=18, color="#0F172A"),
+        legend_font=dict(size=12, color="#0F172A"),
+        margin=dict(l=10, r=10, t=60, b=10),
+        paper_bgcolor="#FFFFFF",
+    )
+
+    st.plotly_chart(fig_setores, use_container_width=True)
     st.dataframe(setores, use_container_width=True, hide_index=True)
 
+
+def render_pain_points_section(current: Dict[str, float], current_label: str) -> None:
     st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
     st.header("Principais dores operacionais")
     st.markdown(
         '<div class="small-muted">Cruzamento de volume com risco operacional: SLA, backlog, primeiro retorno e tempo de resolução.</div>',
         unsafe_allow_html=True,
     )
+
     dores = pain_points(current)
-    st.dataframe(dores, use_container_width=True, hide_index=True)
+
+    status_counts = (
+        dores["Status"]
+        .value_counts()
+        .reset_index()
+        .rename(columns={"index": "Status", "Status": "Quantidade"})
+    )
+
+    col1, col2 = st.columns([1, 2])
+
+    with col1:
+        fig_dores = px.pie(
+            status_counts,
+            names="Status",
+            values="Quantidade",
+            title="Resumo das dores",
+            hole=0.45,
+            color="Status",
+            color_discrete_map={
+                "Bom": "#059669",
+                "Crítico": "#DC2626",
+            },
+        )
+
+        fig_dores.update_traces(
+            textinfo="label+value+percent",
+            textfont_size=13,
+            marker=dict(line=dict(color="#FFFFFF", width=2)),
+        )
+
+        fig_dores.update_layout(
+            height=390,
+            font=PLOT_FONT,
+            title_font=dict(size=18, color="#0F172A"),
+            legend_font=dict(size=12, color="#0F172A"),
+            margin=dict(l=10, r=10, t=60, b=10),
+            paper_bgcolor="#FFFFFF",
+        )
+
+        st.plotly_chart(fig_dores, use_container_width=True)
+
+    with col2:
+        st.dataframe(dores, use_container_width=True, hide_index=True)
 
     critical = dores.loc[dores["Status"] == "Crítico", "Dor / Indicador"].tolist()
+
     if critical:
         st.markdown(
             f"<div class='alert-box'>Análise de dores operacionais para <b>{current_label}</b>: identificamos pontos críticos em: <b>{', '.join(critical)}</b>.</div>",
             unsafe_allow_html=True,
         )
+    else:
+        st.markdown(
+            f"<div class='note-box'>Análise de dores operacionais para <b>{current_label}</b>: nenhum ponto crítico identificado pelos critérios atuais.</div>",
+            unsafe_allow_html=True,
+        )
 
+
+def render_top_impactadores(current_df: pd.DataFrame) -> None:
     st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
     st.header("Top impactadores do mês atual")
     st.markdown(
@@ -829,14 +1147,25 @@ def render_current_sections(current_df: pd.DataFrame, current: Dict[str, float],
 
     with c1:
         display_rank_block("Clientes", top_table(current_df, "empresa", 5))
+
     with c2:
         display_rank_block("Setores", top_table(current_df, "setor", 5))
+
     with c3:
         display_rank_block("Responsáveis", top_table(current_df, "responsavel", 5))
+
     with c4:
         display_rank_block("Categorias", top_table(current_df, "categoria", 5))
+
     with c5:
         display_rank_block("Itens", top_table(current_df, "item", 5))
+
+
+def render_current_sections(current_df: pd.DataFrame, current: Dict[str, float], current_label: str) -> None:
+    render_current_overview(current, current_label)
+    render_sector_pie(current_df)
+    render_pain_points_section(current, current_label)
+    render_top_impactadores(current_df)
 
 
 def main() -> None:
@@ -844,6 +1173,7 @@ def main() -> None:
         '<div class="main-title">Dashboard de Chamados | SLA, Backlog e Operação</div>',
         unsafe_allow_html=True,
     )
+
     st.markdown(
         '<div class="sub-title">Fluxo progressivo: primeiro carregue o mês atual. Depois carregue o mês anterior para comparar.</div>',
         unsafe_allow_html=True,
@@ -851,6 +1181,7 @@ def main() -> None:
 
     with st.sidebar:
         st.header("Upload das bases")
+
         st.caption("1º passo: carregue o mês atual, por exemplo Maio. O dashboard já aparece.")
         current_label = st.text_input("Nome do mês atual", value="Maio")
         current_upload = st.file_uploader("1) Arquivo do mês atual", type=["xls", "xlsx"], key="current")
@@ -895,17 +1226,22 @@ def main() -> None:
 
     if previous is None:
         st.markdown(
-            f"<div class='note-box'><b>{current_label} carregado com sucesso.</b> O dashboard abaixo mostra as informações do mês atual. Para ver a diferença nos KPIs e nos gráficos, envie também o arquivo de {previous_label} no menu lateral.</div>",
+            f"<div class='note-box'><b>{current_label} carregado com sucesso.</b> O dashboard abaixo mostra as informações do mês atual. Para ver a diferença nos KPIs, nos cards e nos gráficos, envie também o arquivo de {previous_label} no menu lateral.</div>",
             unsafe_allow_html=True,
         )
+
+        render_current_sections(current_df, current, current_label)
+
     else:
         st.markdown(
             f"<div class='note-box'><b>{current_label} e {previous_label} carregados com sucesso.</b> Os KPIs acima já mostram a comparação de {current_label} contra {previous_label}.</div>",
             unsafe_allow_html=True,
         )
-        render_comparison(previous, current, previous_label, current_label)
 
-    render_current_sections(current_df, current, current_label)
+        render_evolution_cards(previous, current, previous_label, current_label)
+        comp = render_comparison_charts(previous, current, previous_label, current_label)
+        render_comparison_table_and_reading(comp, previous_label, current_label)
+        render_current_sections(current_df, current, current_label)
 
     with st.expander("Ver prévia da base carregada"):
         st.write(f"**{current_label}:** {current_df.shape[0]} linhas e {current_df.shape[1]} colunas")
