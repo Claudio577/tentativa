@@ -1321,16 +1321,504 @@ def render_current_sections(
     render_top_impactadores(current_df)
 
 
-def main() -> None:
-    st.markdown(
-        '<div class="main-title">Dashboard de Chamados | SLA, Backlog e Operação</div>',
-        unsafe_allow_html=True,
+
+MONTH_ALIASES = {
+    "janeiro": 1,
+    "jan": 1,
+    "fevereiro": 2,
+    "fev": 2,
+    "março": 3,
+    "marco": 3,
+    "mar": 3,
+    "abril": 4,
+    "abr": 4,
+    "maio": 5,
+    "mai": 5,
+    "junho": 6,
+    "jun": 6,
+    "julho": 7,
+    "jul": 7,
+    "agosto": 8,
+    "ago": 8,
+    "setembro": 9,
+    "set": 9,
+    "outubro": 10,
+    "out": 10,
+    "novembro": 11,
+    "nov": 11,
+    "dezembro": 12,
+    "dez": 12,
+}
+
+MONTH_NAMES = {
+    1: "Janeiro",
+    2: "Fevereiro",
+    3: "Março",
+    4: "Abril",
+    5: "Maio",
+    6: "Junho",
+    7: "Julho",
+    8: "Agosto",
+    9: "Setembro",
+    10: "Outubro",
+    11: "Novembro",
+    12: "Dezembro",
+}
+
+
+def detect_month_from_filename(filename: str, fallback_order: int) -> tuple[str, int]:
+    name = filename.lower()
+    name = (
+        name.replace("_", " ")
+        .replace("-", " ")
+        .replace("(", " ")
+        .replace(")", " ")
+        .replace(".", " ")
     )
+    name = " ".join(name.split())
+
+    for token, month_number in MONTH_ALIASES.items():
+        if token in name:
+            return MONTH_NAMES[month_number], month_number
+
+    return f"Relatório {fallback_order}", 100 + fallback_order
+
+
+def metrics_to_summary_row(
+    label: str,
+    order: int,
+    metrics: Dict[str, float],
+    filename: str,
+) -> Dict[str, Any]:
+    return {
+        "Mês": label,
+        "Ordem": order,
+        "Arquivo": filename,
+        "Total de chamados": metrics.get("Total de chamados", 0),
+        "Dentro SLA": metrics.get("Dentro SLA", 0),
+        "Fora SLA": metrics.get("Fora SLA", 0),
+        "% SLA": metrics.get("% SLA", 0),
+        "Tratados até 72h": metrics.get("Tratados até 72h", 0),
+        "Tratados acima de 72h": metrics.get("Tratados acima de 72h", 0),
+        "Em aberto / sem encerramento": metrics.get("Em aberto / sem encerramento", 0),
+        "Backlog por status": metrics.get("Backlog por status", 0),
+        "Empresas": metrics.get("Empresas", 0),
+        "FCR tratado": metrics.get("FCR tratado", 0),
+        "First Call Resolution até 1h": metrics.get("First Call Resolution até 1h", 0),
+        "Resolvidos acima de 1h": metrics.get("Resolvidos acima de 1h", 0),
+        "% FCR 1h": metrics.get("% FCR 1h", 0),
+        "% 1º retorno até 1h": metrics.get("% 1º retorno até 1h", 0),
+    }
+
+
+def build_historical_dataset(uploaded_files: list[Any]) -> tuple[pd.DataFrame, pd.DataFrame]:
+    summary_rows = []
+    base_parts = []
+
+    for idx, uploaded_file in enumerate(uploaded_files, start=1):
+        label, order = detect_month_from_filename(uploaded_file.name, idx)
+        df = read_excel_smart(uploaded_file)
+
+        if df.empty:
+            continue
+
+        metrics = calculate_metrics(df)
+        if not metrics:
+            continue
+
+        df = df.copy()
+        df["Mês"] = label
+        df["Ordem mês"] = order
+        df["Arquivo origem"] = uploaded_file.name
+
+        summary_rows.append(metrics_to_summary_row(label, order, metrics, uploaded_file.name))
+        base_parts.append(df)
+
+    if not summary_rows:
+        return pd.DataFrame(), pd.DataFrame()
+
+    summary_df = pd.DataFrame(summary_rows).sort_values("Ordem").reset_index(drop=True)
+    combined_df = pd.concat(base_parts, ignore_index=True) if base_parts else pd.DataFrame()
+
+    return summary_df, combined_df
+
+
+def display_historical_kpis(summary_df: pd.DataFrame) -> None:
+    total_chamados = int(summary_df["Total de chamados"].sum())
+    qtd_meses = int(summary_df["Mês"].nunique())
+    media_mensal = total_chamados / qtd_meses if qtd_meses else 0
+    sla_medio = float(summary_df["% SLA"].mean()) if not summary_df.empty else 0
+
+    melhor_idx = summary_df["% SLA"].idxmax()
+    pior_idx = summary_df["% SLA"].idxmin()
+
+    melhor_mes = summary_df.loc[melhor_idx, "Mês"]
+    melhor_sla = summary_df.loc[melhor_idx, "% SLA"]
+
+    pior_mes = summary_df.loc[pior_idx, "Mês"]
+    pior_sla = summary_df.loc[pior_idx, "% SLA"]
+
+    cols = st.columns(5)
+
+    with cols[0]:
+        kpi_card("Total no período", format_int(total_chamados), f"{qtd_meses} relatórios", "neutral")
+
+    with cols[1]:
+        kpi_card("Média mensal", format_int(media_mensal), "Chamados por mês", "neutral")
+
+    with cols[2]:
+        status = "good" if sla_medio >= 80 else "bad"
+        kpi_card("SLA médio", format_pct(sla_medio), "Meta: ≥ 80%", status)
+
+    with cols[3]:
+        kpi_card("Melhor SLA", format_pct(melhor_sla), str(melhor_mes), "good")
+
+    with cols[4]:
+        status = "good" if pior_sla >= 80 else "bad"
+        kpi_card("Pior SLA", format_pct(pior_sla), str(pior_mes), status)
+
+
+def render_history_line_chart(
+    summary_df: pd.DataFrame,
+    y_column: str,
+    title: str,
+    y_title: str,
+    is_percentage: bool = False,
+    meta: Optional[float] = None,
+    height: int = 370,
+) -> None:
+    fig = px.line(
+        summary_df,
+        x="Mês",
+        y=y_column,
+        markers=True,
+        text=y_column,
+        title=title,
+    )
+
+    if is_percentage:
+        fig.update_traces(texttemplate="%{text:.1f}%", textposition="top center")
+        y_max = max(float(summary_df[y_column].max()), meta or 0, 10)
+        fig.update_layout(yaxis_range=[0, y_max + 15])
+    else:
+        fig.update_traces(texttemplate="%{text:.0f}", textposition="top center")
+        y_max = max(float(summary_df[y_column].max()), 10)
+        fig.update_layout(yaxis_range=[0, y_max * 1.18])
+
+    if meta is not None:
+        fig.add_hline(
+            y=meta,
+            line_dash="dash",
+            line_color="#DC2626",
+            annotation_text=f"Meta {format_pct(meta) if is_percentage else format_int(meta)}",
+            annotation_position="top left",
+        )
+
+    fig.update_layout(
+        height=height,
+        xaxis_title="",
+        yaxis_title=y_title,
+        font=PLOT_FONT,
+        margin=dict(l=10, r=20, t=55, b=40),
+        plot_bgcolor="#FFFFFF",
+        paper_bgcolor="#FFFFFF",
+    )
+
+    fig.update_xaxes(tickfont=dict(size=11, color="#0F172A"))
+    fig.update_yaxes(tickfont=dict(size=11, color="#0F172A"), gridcolor="#E5E7EB")
+
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def render_history_bar_chart(
+    summary_df: pd.DataFrame,
+    y_column: str,
+    title: str,
+    y_title: str,
+    height: int = 350,
+) -> None:
+    fig = px.bar(
+        summary_df,
+        x="Mês",
+        y=y_column,
+        text=y_column,
+        title=title,
+        color_discrete_sequence=["#2563EB"],
+    )
+
+    fig.update_traces(texttemplate="%{text:.0f}", textposition="outside")
+
+    y_max = max(float(summary_df[y_column].max()), 10)
+    fig.update_layout(
+        height=height,
+        xaxis_title="",
+        yaxis_title=y_title,
+        font=PLOT_FONT,
+        yaxis_range=[0, y_max * 1.18],
+        margin=dict(l=10, r=20, t=55, b=40),
+        plot_bgcolor="#FFFFFF",
+        paper_bgcolor="#FFFFFF",
+        showlegend=False,
+    )
+
+    fig.update_xaxes(tickfont=dict(size=11, color="#0F172A"))
+    fig.update_yaxes(tickfont=dict(size=11, color="#0F172A"), gridcolor="#E5E7EB")
+
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def render_historical_evolution(summary_df: pd.DataFrame) -> None:
+    st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+    st.header("Evolução mensal")
     st.markdown(
-        '<div class="sub-title">Fluxo progressivo: primeiro carregue o mês atual. Depois carregue o mês anterior para comparar.</div>',
+        '<div class="small-muted">Visão histórica dos principais indicadores mês a mês.</div>',
         unsafe_allow_html=True,
     )
 
+    col1, col2 = st.columns(2)
+
+    with col1:
+        render_history_bar_chart(
+            summary_df,
+            "Total de chamados",
+            "Volume mensal de chamados",
+            "Quantidade",
+            height=350,
+        )
+
+    with col2:
+        render_history_line_chart(
+            summary_df,
+            "% SLA",
+            "Evolução do SLA mensal",
+            "Percentual (%)",
+            is_percentage=True,
+            meta=80,
+            height=350,
+        )
+
+    col3, col4 = st.columns(2)
+
+    with col3:
+        render_history_line_chart(
+            summary_df,
+            "% 1º retorno até 1h",
+            "Evolução do 1º retorno até 1h",
+            "Percentual (%)",
+            is_percentage=True,
+            meta=70,
+            height=350,
+        )
+
+    with col4:
+        render_history_bar_chart(
+            summary_df,
+            "Backlog por status",
+            "Backlog por mês",
+            "Quantidade",
+            height=350,
+        )
+
+    col5, col6 = st.columns(2)
+
+    with col5:
+        render_history_bar_chart(
+            summary_df,
+            "Tratados acima de 72h",
+            "Chamados acima de 72h por mês",
+            "Quantidade",
+            height=350,
+        )
+
+    with col6:
+        render_history_line_chart(
+            summary_df,
+            "% FCR 1h",
+            "Evolução do FCR até 1h",
+            "Percentual (%)",
+            is_percentage=True,
+            height=350,
+        )
+
+
+def build_month_over_month(summary_df: pd.DataFrame) -> pd.DataFrame:
+    df = summary_df.sort_values("Ordem").copy()
+
+    compare_cols = [
+        "Total de chamados",
+        "% SLA",
+        "% 1º retorno até 1h",
+        "% FCR 1h",
+        "Backlog por status",
+        "Tratados acima de 72h",
+        "Em aberto / sem encerramento",
+    ]
+
+    rows = []
+
+    for i in range(1, len(df)):
+        prev = df.iloc[i - 1]
+        curr = df.iloc[i]
+
+        for col in compare_cols:
+            diff = float(curr[col]) - float(prev[col])
+            is_pct = col.startswith("%")
+            variation = pct(diff, float(prev[col])) if (not is_pct and float(prev[col]) != 0) else 0
+
+            rows.append(
+                {
+                    "Comparação": f"{prev['Mês']} → {curr['Mês']}",
+                    "Indicador": col,
+                    "Mês anterior": format_pct(prev[col]) if is_pct else format_int(prev[col]),
+                    "Mês atual": format_pct(curr[col]) if is_pct else format_int(curr[col]),
+                    "Diferença": format_pp(diff) if is_pct else f"{int(diff):+d}",
+                    "Variação %": "-" if is_pct else format_pct(variation),
+                }
+            )
+
+    return pd.DataFrame(rows)
+
+
+def render_month_over_month(summary_df: pd.DataFrame) -> None:
+    if len(summary_df) < 2:
+        return
+
+    st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+    st.header("Comparativo mês a mês")
+    st.markdown(
+        '<div class="small-muted">Tabela com a variação de cada mês em relação ao mês anterior.</div>',
+        unsafe_allow_html=True,
+    )
+
+    mom_df = build_month_over_month(summary_df)
+
+    with st.expander("Ver tabela comparativa mês a mês", expanded=True):
+        st.dataframe(mom_df, use_container_width=True, hide_index=True)
+
+
+def render_historical_rankings(combined_df: pd.DataFrame) -> None:
+    st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+    st.header("Ranking acumulado do período")
+    st.markdown(
+        '<div class="small-muted">Principais clientes, setores, responsáveis, categorias e itens considerando todos os relatórios carregados.</div>',
+        unsafe_allow_html=True,
+    )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        clientes = top_table(combined_df, "empresa", top_n=10, include_other=False)
+        render_horizontal_bar_from_table(clientes, "Clientes | Top 10 do período", height=340)
+
+    with col2:
+        setores = top_table(combined_df, "setor", top_n=5, include_other=True)
+        render_pie_chart_from_table(setores, "Setores no período", height=340)
+
+    col3, col4 = st.columns(2)
+
+    with col3:
+        responsaveis = top_table(combined_df, "responsavel", top_n=10, include_other=False)
+        render_horizontal_bar_from_table(responsaveis, "Responsáveis | Top 10 do período", height=340)
+
+    with col4:
+        categorias = top_table(combined_df, "categoria", top_n=5, include_other=True)
+        render_pie_chart_from_table(categorias, "Categorias no período", height=340)
+
+    itens = top_table(combined_df, "item", top_n=10, include_other=False)
+    render_horizontal_bar_from_table(itens, "Itens | Top 10 do período", height=360)
+
+
+def render_executive_history_reading(summary_df: pd.DataFrame) -> None:
+    if summary_df.empty:
+        return
+
+    first = summary_df.iloc[0]
+    last = summary_df.iloc[-1]
+
+    diff_volume = float(last["Total de chamados"]) - float(first["Total de chamados"])
+    diff_sla = float(last["% SLA"]) - float(first["% SLA"])
+    diff_retorno = float(last["% 1º retorno até 1h"]) - float(first["% 1º retorno até 1h"])
+    diff_backlog = float(last["Backlog por status"]) - float(first["Backlog por status"])
+
+    melhor_mes = summary_df.loc[summary_df["% SLA"].idxmax(), "Mês"]
+    pior_mes = summary_df.loc[summary_df["% SLA"].idxmin(), "Mês"]
+
+    st.markdown(
+        f"""
+        <div class='note-box'>
+        <b>Leitura executiva do período:</b> do primeiro ao último relatório carregado,
+        o volume variou <b>{int(diff_volume):+d} chamados</b>.
+        O SLA mudou <b>{format_pp(diff_sla)}</b>, o primeiro retorno até 1h mudou
+        <b>{format_pp(diff_retorno)}</b> e o backlog variou <b>{int(diff_backlog):+d}</b>.
+        O melhor mês de SLA foi <b>{melhor_mes}</b> e o pior mês foi <b>{pior_mes}</b>.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_historical_mode() -> None:
+    with st.sidebar:
+        st.header("Histórico")
+        st.caption("Envie vários relatórios mensais. O nome do arquivo deve conter o mês, exemplo: janeiro, fevereiro, março.")
+        historical_uploads = st.file_uploader(
+            "Relatórios mensais",
+            type=["xls", "xlsx"],
+            accept_multiple_files=True,
+            key="historical_uploads",
+        )
+
+    if not historical_uploads:
+        st.info("Envie dois ou mais relatórios mensais para iniciar o estudo histórico.")
+        st.stop()
+
+    summary_df, combined_df = build_historical_dataset(historical_uploads)
+
+    if summary_df.empty:
+        st.error("Não consegui ler dados válidos nos relatórios enviados.")
+        st.stop()
+
+    display_historical_kpis(summary_df)
+    render_executive_history_reading(summary_df)
+    render_historical_evolution(summary_df)
+    render_month_over_month(summary_df)
+    render_historical_rankings(combined_df)
+
+    with st.expander("Ver resumo mensal consolidado"):
+        display_cols = [
+            "Mês",
+            "Arquivo",
+            "Total de chamados",
+            "Dentro SLA",
+            "Fora SLA",
+            "% SLA",
+            "% 1º retorno até 1h",
+            "% FCR 1h",
+            "Backlog por status",
+            "Tratados acima de 72h",
+            "Em aberto / sem encerramento",
+            "Empresas",
+        ]
+
+        formatted = summary_df[display_cols].copy()
+        for col in ["% SLA", "% 1º retorno até 1h", "% FCR 1h"]:
+            formatted[col] = formatted[col].map(format_pct)
+
+        for col in [
+            "Total de chamados",
+            "Dentro SLA",
+            "Fora SLA",
+            "Backlog por status",
+            "Tratados acima de 72h",
+            "Em aberto / sem encerramento",
+            "Empresas",
+        ]:
+            formatted[col] = formatted[col].map(format_int)
+
+        st.dataframe(formatted, use_container_width=True, hide_index=True)
+
+
+def render_two_month_mode() -> None:
     with st.sidebar:
         st.header("Upload das bases")
         st.caption("1º passo: carregue o mês atual, por exemplo Maio. O dashboard já aparece.")
@@ -1415,6 +1903,31 @@ def main() -> None:
         if previous is not None:
             st.write(f"**{previous_label}:** {previous_df.shape[0]} linhas e {previous_df.shape[1]} colunas")
             st.dataframe(previous_df.head(20), use_container_width=True)
+
+
+def main() -> None:
+    st.markdown(
+        '<div class="main-title">Dashboard de Chamados | SLA, Backlog e Operação</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        '<div class="sub-title">Escolha entre comparação de 2 meses ou estudo histórico com vários relatórios.</div>',
+        unsafe_allow_html=True,
+    )
+
+    with st.sidebar:
+        analysis_mode = st.radio(
+            "Tipo de análise",
+            ["Comparação entre 2 meses", "Histórico com vários meses"],
+        )
+
+        st.divider()
+
+    if analysis_mode == "Comparação entre 2 meses":
+        render_two_month_mode()
+    else:
+        render_historical_mode()
 
 
 if __name__ == "__main__":
