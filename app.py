@@ -41,7 +41,7 @@ CUSTOM_CSS = """
     border-radius: 12px;
     box-shadow: 0 3px 12px rgba(15, 23, 42, 0.08);
     padding: 18px 16px 16px 16px;
-    min-height: 132px;
+    min-height: 140px;
 }
 
 .kpi-card.good {
@@ -103,6 +103,7 @@ CUSTOM_CSS = """
 
 .kpi-delta-wrap {
     text-align: center;
+    margin-top: 8px;
 }
 
 .kpi-delta.positive {
@@ -150,15 +151,15 @@ CUSTOM_CSS = """
 }
 
 .chart-title {
-    font-size: 1.05rem;
+    font-size: 1.02rem;
     font-weight: 800;
     color: #111827;
-    margin-top: 1.2rem;
+    margin-top: 0.2rem;
     margin-bottom: 0.15rem;
 }
 
 .chart-subtitle {
-    font-size: 0.88rem;
+    font-size: 0.84rem;
     color: #6B7280;
     margin-bottom: 0.4rem;
 }
@@ -167,7 +168,7 @@ CUSTOM_CSS = """
     background: #FFFFFF;
     border: 1px solid #E5E7EB;
     border-radius: 12px;
-    padding: 18px 18px 8px 18px;
+    padding: 16px 16px 8px 16px;
     box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
     margin-top: 14px;
     margin-bottom: 20px;
@@ -335,10 +336,6 @@ def format_int(value: float) -> str:
 
 def format_pct(value: float, decimals: int = 1) -> str:
     return f"{value:.{decimals}f}%".replace(".", ",")
-
-
-def format_metric(indicator: str, value: float) -> str:
-    return format_pct(value) if indicator.startswith("%") else format_int(value)
 
 
 def format_pp(value: float) -> str:
@@ -598,14 +595,14 @@ def render_kpis(
         )
 
 
-def render_grouped_quantity_chart(
+def render_vertical_quantity_chart(
     chart_df: pd.DataFrame,
     indicators: list[str],
     title: str,
     subtitle: str,
     previous_label: str,
     current_label: str,
-    height: int = 340,
+    height: int = 420,
 ) -> None:
     filtered = chart_df[chart_df["Indicador"].isin(indicators)].copy()
     filtered["Indicador"] = pd.Categorical(filtered["Indicador"], categories=indicators, ordered=True)
@@ -624,22 +621,21 @@ def render_grouped_quantity_chart(
 
     fig = px.bar(
         long_df,
-        y="Indicador",
-        x="Valor",
+        x="Indicador",
+        y="Valor",
         color="Mês",
         barmode="group",
-        orientation="h",
         text="Valor",
     )
-    fig.update_traces(texttemplate="%{x:.0f}", textposition="outside")
-    fig.update_yaxes(categoryorder="array", categoryarray=indicators, autorange="reversed")
+    fig.update_traces(texttemplate="%{y:.0f}", textposition="outside")
     fig.update_layout(
         height=height,
-        xaxis_title="Quantidade",
-        yaxis_title="",
+        xaxis_title="",
+        yaxis_title="Quantidade",
         legend_title="",
-        margin=dict(l=10, r=70, t=20, b=20),
+        margin=dict(l=10, r=10, t=20, b=40),
     )
+    fig.update_xaxes(tickangle=-20)
     st.plotly_chart(fig, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -686,7 +682,7 @@ def render_percentage_chart(
         yaxis_title="Percentual (%)",
         legend_title="",
         yaxis_range=[0, max_value + 15],
-        margin=dict(l=10, r=40, t=20, b=30),
+        margin=dict(l=10, r=10, t=20, b=30),
     )
     st.plotly_chart(fig, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
@@ -709,45 +705,50 @@ def render_comparison(
 
     chart_df = comp.rename(columns={"Mês anterior": previous_label, "Mês atual": current_label})
 
-    render_grouped_quantity_chart(
-        chart_df,
-        ["Total de chamados", "Dentro SLA", "Fora SLA"],
-        "Volume geral",
-        "Comparação dos principais volumes de chamados e SLA.",
-        previous_label,
-        current_label,
-        height=300,
-    )
+    col1, col2, col3 = st.columns(3)
 
-    render_grouped_quantity_chart(
-        chart_df,
-        [
-            "Tratados até 72h",
-            "Tratados acima de 72h",
-            "Em aberto / sem encerramento",
-            "Backlog por status",
-        ],
-        "Tratativas e backlog",
-        "Visão de tempo de resolução, chamados sem encerramento e backlog.",
-        previous_label,
-        current_label,
-        height=360,
-    )
+    with col1:
+        render_vertical_quantity_chart(
+            chart_df,
+            ["Total de chamados", "Dentro SLA", "Fora SLA"],
+            "Volume geral",
+            "Principais volumes de chamados e SLA.",
+            previous_label,
+            current_label,
+            height=420,
+        )
 
-    render_grouped_quantity_chart(
-        chart_df,
-        [
-            "FCR tratado",
-            "First Call Resolution até 1h",
-            "Resolvidos acima de 1h",
-            "Empresas",
-        ],
-        "Produtividade",
-        "Comparação de produtividade, resoluções rápidas, resoluções acima de 1h e empresas atendidas.",
-        previous_label,
-        current_label,
-        height=360,
-    )
+    with col2:
+        render_vertical_quantity_chart(
+            chart_df,
+            [
+                "Tratados até 72h",
+                "Tratados acima de 72h",
+                "Em aberto / sem encerramento",
+                "Backlog por status",
+            ],
+            "Tratativas e backlog",
+            "Tempo de resolução, chamados abertos e backlog.",
+            previous_label,
+            current_label,
+            height=420,
+        )
+
+    with col3:
+        render_vertical_quantity_chart(
+            chart_df,
+            [
+                "FCR tratado",
+                "First Call Resolution até 1h",
+                "Resolvidos acima de 1h",
+                "Empresas",
+            ],
+            "Produtividade",
+            "Resoluções, produtividade e empresas atendidas.",
+            previous_label,
+            current_label,
+            height=420,
+        )
 
     render_percentage_chart(chart_df, previous_label, current_label)
 
@@ -779,7 +780,7 @@ def render_current_sections(current_df: pd.DataFrame, current: Dict[str, float],
     st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
     st.header("Setores com maior demanda")
     st.markdown(
-        '<div class="small-muted">Ranking de setores com maior volume de chamados no mês atual, ordenado do maior para o menor.</div>',
+        '<div class="small-muted">Distribuição dos setores com maior volume de chamados no mês atual.</div>',
         unsafe_allow_html=True,
     )
 
@@ -788,22 +789,15 @@ def render_current_sections(current_df: pd.DataFrame, current: Dict[str, float],
     if not setores.empty:
         setores = setores.sort_values("Quantidade", ascending=False)
 
-        fig_setores = px.bar(
+        fig_setores = px.pie(
             setores,
-            x="Quantidade",
-            y="Nome",
-            orientation="h",
-            text="Quantidade",
-            title="Volume por setor",
+            names="Nome",
+            values="Quantidade",
+            title="Distribuição por setor",
+            hole=0.35,
         )
-        fig_setores.update_traces(textposition="outside")
-        fig_setores.update_yaxes(autorange="reversed")
-        fig_setores.update_layout(
-            height=420,
-            yaxis_title="",
-            xaxis_title="Quantidade",
-            margin=dict(l=20, r=70, t=60, b=20),
-        )
+        fig_setores.update_traces(textinfo="percent+label")
+        fig_setores.update_layout(height=500, margin=dict(l=10, r=10, t=60, b=10))
         st.plotly_chart(fig_setores, use_container_width=True)
 
     st.dataframe(setores, use_container_width=True, hide_index=True)
