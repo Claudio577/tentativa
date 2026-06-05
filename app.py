@@ -1642,11 +1642,14 @@ def render_historical_evolution(summary_df: pd.DataFrame) -> None:
 
 
 def build_month_over_month(summary_df: pd.DataFrame) -> pd.DataFrame:
+    """Base formatada para a tabela detalhada de variação mês a mês."""
     df = summary_df.sort_values("Ordem").copy()
 
     compare_cols = [
         "Total de chamados",
         "% SLA",
+        "Dentro SLA",
+        "Fora SLA",
         "% 1º retorno até 1h",
         "% FCR 1h",
         "Backlog por status",
@@ -1661,22 +1664,51 @@ def build_month_over_month(summary_df: pd.DataFrame) -> pd.DataFrame:
         curr = df.iloc[i]
 
         for col in compare_cols:
-            diff = float(curr[col]) - float(prev[col])
+            previous_value = float(prev[col])
+            current_value = float(curr[col])
+            diff = current_value - previous_value
             is_pct = col.startswith("%")
-            variation = pct(diff, float(prev[col])) if (not is_pct and float(prev[col]) != 0) else 0
+            variation = pct(diff, previous_value) if (not is_pct and previous_value != 0) else None
+            direction_class = delta_direction_class(col, diff)
+
+            if direction_class == "positive":
+                reading = "✅ Melhorou"
+            elif direction_class == "negative":
+                reading = "⚠️ Piorou"
+            else:
+                reading = "• Neutro"
 
             rows.append(
                 {
                     "Comparação": f"{prev['Mês']} → {curr['Mês']}",
                     "Indicador": col,
-                    "Mês anterior": format_pct(prev[col]) if is_pct else format_int(prev[col]),
-                    "Mês atual": format_pct(curr[col]) if is_pct else format_int(curr[col]),
+                    "Anterior": format_pct(previous_value) if is_pct else format_int(previous_value),
+                    "Atual": format_pct(current_value) if is_pct else format_int(current_value),
                     "Diferença": format_pp(diff) if is_pct else f"{int(diff):+d}",
-                    "Variação %": "-" if is_pct else format_pct(variation),
+                    "Variação": "-" if is_pct or variation is None else format_pct(variation),
+                    "Leitura": reading,
+                    "Classe": direction_class,
                 }
             )
 
     return pd.DataFrame(rows)
+
+
+def render_mom_card(indicator: str, previous_row: pd.Series, current_row: pd.Series) -> None:
+    previous_value = float(previous_row[indicator])
+    current_value = float(current_row[indicator])
+    diff = current_value - previous_value
+    card_class = delta_direction_class(indicator, diff)
+    delta_label = delta_text(indicator, current_value, previous_value, str(previous_row["Mês"]))
+
+    st.markdown(
+        f'<div class="evo-card {card_class}">'
+        f'<div class="evo-label">{indicator}</div>'
+        f'<div class="evo-value">{format_metric(indicator, current_value)}</div>'
+        f'<div class="evo-delta {card_class}">{delta_label}</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
 
 
 def render_month_over_month(summary_df: pd.DataFrame) -> None:
@@ -1686,14 +1718,78 @@ def render_month_over_month(summary_df: pd.DataFrame) -> None:
     st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
     st.header("Comparativo mês a mês")
     st.markdown(
-        '<div class="small-muted">Tabela com a variação de cada mês em relação ao mês anterior.</div>',
+        '<div class="small-muted">Resumo visual da variação de cada mês em relação ao mês anterior. A tabela completa fica separada para não poluir a leitura.</div>',
         unsafe_allow_html=True,
     )
 
-    mom_df = build_month_over_month(summary_df)
+    ordered = summary_df.sort_values("Ordem").reset_index(drop=True)
+    mom_df = build_month_over_month(ordered)
 
-    with st.expander("Ver tabela comparativa mês a mês", expanded=True):
-        st.dataframe(mom_df, use_container_width=True, hide_index=True)
+    tab_resumo, tab_tabela = st.tabs(["Resumo visual", "Tabela completa"])
+
+    with tab_resumo:
+        card_indicators = [
+            "Total de chamados",
+            "% SLA",
+            "% 1º retorno até 1h",
+            "Backlog por status",
+            "Tratados acima de 72h",
+        ]
+
+        for i in range(1, len(ordered)):
+            prev = ordered.iloc[i - 1]
+            curr = ordered.iloc[i]
+            comparison_label = f"{prev['Mês']} → {curr['Mês']}"
+
+            st.markdown(f"### {comparison_label}")
+            cols = st.columns(5)
+            for col, indicator in zip(cols, card_indicators):
+                with col:
+                    render_mom_card(indicator, prev, curr)
+
+            comparison_rows = mom_df[mom_df["Comparação"] == comparison_label]
+            worse = comparison_rows.loc[comparison_rows["Classe"] == "negative", "Indicador"].tolist()
+            better = comparison_rows.loc[comparison_rows["Classe"] == "positive", "Indicador"].tolist()
+
+            if worse:
+                st.markdown(
+                    f"<div class='alert-box'><b>Atenção em {comparison_label}:</b> piora em <b>{', '.join(worse)}</b>.</div>",
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(
+                    f"<div class='note-box'><b>{comparison_label}:</b> nenhum indicador crítico piorou pelos critérios atuais.</div>",
+                    unsafe_allow_html=True,
+                )
+
+            if better:
+                st.markdown(
+                    f"<div class='note-box'><b>Melhoras observadas:</b> {', '.join(better)}.</div>",
+                    unsafe_allow_html=True,
+                )
+
+    with tab_tabela:
+        table_df = mom_df.drop(columns=["Classe"])
+        st.dataframe(
+            table_df,
+            use_container_width=True,
+            hide_index=True,
+            height=420,
+            column_config={
+                "Comparação": st.column_config.TextColumn("Comparação", width="small"),
+                "Indicador": st.column_config.TextColumn("Indicador", width="medium"),
+                "Anterior": st.column_config.TextColumn("Anterior", width="small"),
+                "Atual": st.column_config.TextColumn("Atual", width="small"),
+                "Diferença": st.column_config.TextColumn("Diferença", width="small"),
+                "Variação": st.column_config.TextColumn("Variação", width="small"),
+                "Leitura": st.column_config.TextColumn("Leitura", width="small"),
+            },
+        )
+
+        st.markdown(
+            "<div class='small-muted'>Use esta tabela apenas para conferência detalhada. Para apresentação executiva, o resumo visual acima é mais claro.</div>",
+            unsafe_allow_html=True,
+        )
 
 
 def render_historical_rankings(combined_df: pd.DataFrame) -> None:
