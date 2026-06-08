@@ -1317,7 +1317,7 @@ def render_current_sections(
         render_current_overview(current, current_label)
 
     render_sector_pie(current_df)
-    render_pain_points_section(current, current_label)
+    # Seção removida: "Principais dores operacionais"
     render_top_impactadores(current_df)
 
 
